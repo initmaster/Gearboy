@@ -45,16 +45,11 @@ struct config_Emulator
     bool start_paused = false;
     bool pause_when_inactive = true;
     bool force_dmg = false;
-    bool force_gba = false;
     bool ffwd = false;
     int ffwd_speed = 1;
     bool show_info = false;
     int mbc = 0;
     std::string recent_roms[config_max_recent_roms];
-    bool dmg_bootrom;
-    std::string dmg_bootrom_path;
-    bool gbc_bootrom;
-    std::string gbc_bootrom_path;
     int savefiles_dir_option = 0;
     std::string savefiles_path;
     int savestates_dir_option = 0;
@@ -72,7 +67,7 @@ struct config_Video
     int ratio = 0;
     bool fps = false;
     bool bilinear = false;
-    bool mix_frames = true;
+    bool mix_frames = false;
     float mix_frames_intensity = 0.75f;
     bool matrix = true;
     float matrix_intensity = 0.20f;
@@ -87,7 +82,6 @@ struct config_Video
     bool sync = true;
     bool color_correction = true;
     float background_color[3] = {0.1f, 0.1f, 0.1f};
-    float background_color_debugger[3] = {0.2f, 0.2f, 0.2f};
 };
 
 struct config_Audio
@@ -102,10 +96,28 @@ struct config_Input
     SDL_Scancode key_right = SDL_SCANCODE_RIGHT;
     SDL_Scancode key_up = SDL_SCANCODE_UP;
     SDL_Scancode key_down = SDL_SCANCODE_DOWN;
-    SDL_Scancode key_a = SDL_SCANCODE_S;
-    SDL_Scancode key_b = SDL_SCANCODE_A;
+    SDL_Scancode key_a = SDL_SCANCODE_SPACE;
+    SDL_Scancode key_b = SDL_SCANCODE_LALT;
     SDL_Scancode key_start = SDL_SCANCODE_RETURN;
-    SDL_Scancode key_select = SDL_SCANCODE_SPACE;
+    SDL_Scancode key_select = SDL_SCANCODE_RALT;
+
+    SDL_Scancode key_alt_left = SDL_SCANCODE_A;
+    SDL_Scancode key_alt_right = SDL_SCANCODE_D;
+    SDL_Scancode key_alt_up = SDL_SCANCODE_W;
+    SDL_Scancode key_alt_down = SDL_SCANCODE_S;
+    SDL_Scancode key_alt_a = SDL_SCANCODE_J;
+    SDL_Scancode key_alt_b = SDL_SCANCODE_K;
+    SDL_Scancode key_alt_start = SDL_SCANCODE_I;
+    SDL_Scancode key_alt_select = SDL_SCANCODE_U;
+
+    SDL_Scancode key_alt2_left = SDL_SCANCODE_Q;
+    SDL_Scancode key_alt2_right = SDL_SCANCODE_UNKNOWN;
+    SDL_Scancode key_alt2_up = SDL_SCANCODE_Z;
+    SDL_Scancode key_alt2_down = SDL_SCANCODE_UNKNOWN;
+    SDL_Scancode key_alt2_a = SDL_SCANCODE_C;
+    SDL_Scancode key_alt2_b = SDL_SCANCODE_X;
+    SDL_Scancode key_alt2_start = SDL_SCANCODE_UNKNOWN;
+    SDL_Scancode key_alt2_select = SDL_SCANCODE_UNKNOWN;
 
     bool gamepad = true;
     int gamepad_directional = 0;
@@ -131,12 +143,6 @@ enum config_HotkeyIndex
     config_HotkeyIndex_Screenshot,
     config_HotkeyIndex_Fullscreen,
     config_HotkeyIndex_ShowMainMenu,
-    config_HotkeyIndex_DebugStep,
-    config_HotkeyIndex_DebugContinue,
-    config_HotkeyIndex_DebugNextFrame,
-    config_HotkeyIndex_DebugRunToCursor,
-    config_HotkeyIndex_DebugBreakpoint,
-    config_HotkeyIndex_DebugGoBack,
     config_HotkeyIndex_SelectSlot1,
     config_HotkeyIndex_SelectSlot2,
     config_HotkeyIndex_SelectSlot3,
@@ -157,20 +163,6 @@ struct config_Hotkey
     char str[64];
 };
 
-struct config_Debug
-{
-    bool debug = false;
-    bool show_gameboy = true;
-    bool show_disassembler = true;
-    bool show_processor = true;
-    bool show_memory = true;
-    bool show_iomap = false;
-    bool show_audio = false;
-    bool show_video = false;
-    int font_size = 0;
-    bool multi_viewport = false;
-};
-
 EXTERN mINI::INIFile* config_ini_file;
 EXTERN mINI::INIStructure config_ini_data;
 EXTERN char* config_root_path;
@@ -182,7 +174,6 @@ EXTERN config_Audio config_audio;
 EXTERN config_Input config_input;
 EXTERN config_Input_Gamepad_Shortcuts config_input_gamepad_shortcuts;
 EXTERN config_Hotkey config_hotkeys[config_HotkeyIndex_COUNT];
-EXTERN config_Debug config_debug;
 
 EXTERN void config_init(void);
 EXTERN void config_destroy(void);

@@ -22,8 +22,12 @@
 
 int main(int argc, char* argv[])
 {
-    char* rom_file = NULL;
-    char* symbol_file = NULL;
+    if(!ApplicationSettings::Load())
+    {
+        printf("Failed to load application settings.\n");
+        return -1;
+	}
+    
     bool show_usage = false;
     bool force_fullscreen = false;
     bool force_windowed = false;
@@ -44,6 +48,9 @@ int main(int argc, char* argv[])
                 printf("%s\n", GEARBOY_TITLE_ASCII);
                 printf("Build: %s\n", GEARBOY_VERSION);
                 printf("Author: Ignacio Sánchez (drhelius)\n");
+				if (ApplicationSettings::title.c_str() != GEARBOY_TITLE) printf("Game Title: %s\n", ApplicationSettings::title.c_str());
+                if (ApplicationSettings::version.c_str() != "") printf("Game Version: %s\n", ApplicationSettings::version.c_str());
+                if (ApplicationSettings::author.c_str() != "") printf("Game Author: %s\n", ApplicationSettings::author.c_str());
                 return 0;
             }
             else if ((strcmp(argv[i], "-f") == 0) || (strcmp(argv[i], "--fullscreen") == 0))
@@ -63,30 +70,19 @@ int main(int argc, char* argv[])
         }
     }
 
-    int non_option_count = 0;
     for (int i = 1; i < argc; i++)
     {
         if (argv[i][0] != '-')
-        {
-            if (non_option_count == 0)
-                rom_file = argv[i];
-            else if (non_option_count == 1)
-                symbol_file = argv[i];
-            
-            non_option_count++;
-            
-            if (non_option_count > 2)
-            {
-                show_usage = true;
-                ret = -1;
-                break;
-            }
+        {          
+            show_usage = true;
+            ret = -1;
+            break;
         }
     }
 
     if (show_usage)
     {
-        printf("Usage: %s [options] [rom_file] [symbol_file]\n", argv[0]);
+        printf("Usage: %s [options]\n", argv[0]);
         printf("Options:\n");
         printf("  -f, --fullscreen    Start in fullscreen mode\n");
         printf("  -w, --windowed      Start in windowed mode with menu visible\n");
@@ -98,7 +94,7 @@ int main(int argc, char* argv[])
     if (force_fullscreen && force_windowed)
         force_fullscreen = false;
 
-    ret = application_init(rom_file, symbol_file, force_fullscreen, force_windowed);
+    ret = application_init(force_fullscreen, force_windowed);
 
     if (ret == 0)
         application_mainloop();

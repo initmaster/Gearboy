@@ -72,8 +72,6 @@ public:
     time_t GetCurrentRTC();
     bool IsRTCPresent() const;
     bool IsRumblePresent() const;
-    void SetGameGenieCheat(const char* szCheat);
-    void ClearGameGenieCheats();
 
 private:
     unsigned int Pow2Ceil(unsigned int n);

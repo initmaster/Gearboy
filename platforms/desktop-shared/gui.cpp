@@ -29,9 +29,7 @@
 #include "application.h"
 #include "license.h"
 #include "backers.h"
-#include "gui_debug.h"
-#include "gui_debug_memory.h"
-#include "gui_debug_constants.h"
+#include "gui_constants.h"
 #include "imgui/keyboard.h"
 
 #define GUI_IMPORT
@@ -43,11 +41,7 @@ static SDL_Scancode* configured_key;
 static int* configured_button;
 static config_Hotkey* configured_hotkey;
 static ImVec4 custom_palette[config_max_custom_palettes][4];
-static std::list<std::string> cheat_list;
-static bool shortcut_open_rom = false;
 static ImFont* default_font[4];
-static char dmg_bootrom_path[4096] = "";
-static char gbc_bootrom_path[4096] = "";
 static char savefiles_path[4096] = "";
 static char savestates_path[4096] = "";
 static int main_window_width = 0;
@@ -59,18 +53,11 @@ static u32 status_message_duration = 0;
 
 static void main_menu(void);
 static void main_window(void);
-static void file_dialog_open_rom(void);
-static void file_dialog_load_ram(void);
-static void file_dialog_save_ram(void);
 static void file_dialog_load_state(void);
 static void file_dialog_save_state(void);
 static void file_dialog_choose_save_file_path(void);
 static void file_dialog_choose_savestate_path(void);
-static void file_dialog_load_dmg_bootrom(void);
-static void file_dialog_load_gbc_bootrom(void);
-static void file_dialog_load_symbols(void);
 static void file_dialog_save_screenshot(void);
-static void file_dialog_save_vgm(void);
 static void file_dialog_set_native_window(SDL_Window* window, nfdwindowhandle_t* native_window);
 static void keyboard_configuration_item(const char* text, SDL_Scancode* key);
 static void gamepad_configuration_item(const char* text, int* button);
@@ -115,11 +102,6 @@ bool gui_init(void)
 
     io.FontGlobalScale /= application_display_scale;
 
-#if defined(__APPLE__) || defined(_WIN32)
-    if (config_debug.multi_viewport)
-        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-#endif
-
     gui_roboto_font = io.Fonts->AddFontFromMemoryCompressedTTF(RobotoMedium_compressed_data, RobotoMedium_compressed_size, 17.0f * application_display_scale, NULL, io.Fonts->GetGlyphRangesCyrillic());
 
     ImFontConfig font_cfg;
@@ -130,7 +112,7 @@ bool gui_init(void)
         default_font[i] = io.Fonts->AddFontDefault(&font_cfg);
     }
 
-    gui_default_font = default_font[config_debug.font_size];
+    gui_default_font = default_font[0];
 
     update_palette();
     set_style();
@@ -138,22 +120,10 @@ bool gui_init(void)
     emu_audio_volume(config_audio.enable ? 1.0f: 0.0f);
     emu_color_correction(config_video.color_correction);
 
-    strcpy(dmg_bootrom_path, config_emulator.dmg_bootrom_path.c_str());
-    strcpy(gbc_bootrom_path, config_emulator.gbc_bootrom_path.c_str());
     strcpy(savefiles_path, config_emulator.savefiles_path.c_str());
     strcpy(savestates_path, config_emulator.savestates_path.c_str());
 
-    if (strlen(dmg_bootrom_path) > 0)
-        emu_load_bootrom_dmg(dmg_bootrom_path);
-    if (strlen(gbc_bootrom_path) > 0)
-        emu_load_bootrom_gbc(gbc_bootrom_path);
-
-    emu_enable_bootrom_dmg(config_emulator.dmg_bootrom);
-    emu_enable_bootrom_gbc(config_emulator.gbc_bootrom);
-
     gui_configured_hotkey = configured_hotkey;
-
-    gui_debug_memory_init();
 
     return true;
 }
@@ -168,17 +138,12 @@ void gui_render(void)
 {
     ImGui::NewFrame();
 
-    if (config_debug.debug)
-        ImGui::DockSpaceOverViewport();
-
     gui_in_use = dialog_in_use;
 
     main_menu();
 
-    if((!config_debug.debug && !emu_is_empty()) || (config_debug.debug && config_debug.show_gameboy))
+    if(!emu_is_empty())
         main_window();
-
-    gui_debug_windows();
 
     if (config_emulator.show_info)
         show_info();
@@ -192,9 +157,6 @@ void gui_shortcut(gui_ShortCutEvent event)
 {
     switch (event)
     {  
-    case gui_ShortcutOpenROM:
-        shortcut_open_rom = true;
-        break;
     case gui_ShortcutReset:
         menu_reset();
         break;
@@ -214,41 +176,6 @@ void gui_shortcut(gui_ShortCutEvent event)
     case gui_ShortcutScreenshot:
         call_save_screenshot(NULL);
         break;
-    case gui_ShortcutDebugStep:
-        if (config_debug.debug)
-            emu_debug_step();
-        break;
-    case gui_ShortcutDebugContinue:
-        if (config_debug.debug)
-            emu_debug_continue();
-        break;
-    case gui_ShortcutDebugNextFrame:
-        if (config_debug.debug)
-        {
-            emu_debug_next_frame();
-            gui_debug_memory_step_frame();
-        }
-        break;
-    case gui_ShortcutDebugBreakpoint:
-        if (config_debug.debug)
-            gui_debug_toggle_breakpoint();
-        break;
-    case gui_ShortcutDebugRuntocursor:
-        if (config_debug.debug)
-            gui_debug_runtocursor();
-        break;
-    case gui_ShortcutDebugGoBack:
-        if (config_debug.debug)
-            gui_debug_go_back();
-        break;
-    case gui_ShortcutDebugCopy:
-        if (config_debug.debug)
-            gui_debug_memory_copy();
-        break;
-    case gui_ShortcutDebugPaste:
-        if (config_debug.debug)
-            gui_debug_memory_paste();
-        break;
     case gui_ShortcutShowMainMenu:
         config_emulator.always_show_menu = !config_emulator.always_show_menu;
         break;
@@ -257,30 +184,16 @@ void gui_shortcut(gui_ShortCutEvent event)
     }
 }
 
-void gui_load_rom(const char* path)
+void gui_load_internal_rom()
 {
-    std::string message("Loading ROM ");
-    message += path;
-    gui_set_status_message(message.c_str(), 3000);
-
-    push_recent_rom(path);
     emu_resume();
-    emu_load_rom(path, config_emulator.force_dmg, get_mbc(config_emulator.mbc), config_emulator.force_gba);
-    cheat_list.clear();
-    emu_clear_cheats();
-
-    gui_debug_reset();
-
-    std::string str(path);
-    str = str.substr(0, str.find_last_of("."));
-    str += ".sym";
-    gui_debug_load_symbols_file(str.c_str());
+    emu_load_internal_rom(config_emulator.force_dmg, get_mbc(config_emulator.mbc));
 
     if (config_emulator.start_paused)
     {
         emu_pause();
-        
-        for (int i=0; i < (GAMEBOY_WIDTH * GAMEBOY_HEIGHT); i++)
+
+        for (int i = 0; i < (GAMEBOY_WIDTH * GAMEBOY_HEIGHT); i++)
         {
             emu_frame_buffer[i].red = 0;
             emu_frame_buffer[i].green = 0;
@@ -305,19 +218,12 @@ void gui_set_status_message(const char* message, u32 milliseconds)
 
 static void main_menu(void)
 {
-    bool open_rom = false;
-    bool open_ram = false;
-    bool save_ram = false;
     bool open_state = false;
     bool save_state = false;
     bool open_about = false;
-    bool open_symbols = false;
     bool save_screenshot = false;
-    bool save_vgm = false;
     bool choose_save_file_path = false;
     bool choose_savestates_path = false;
-    bool open_dmg_bootrom = false;
-    bool open_gbc_bootrom = false;
 
     for (int i = 0; i < config_max_custom_palettes; i++)
         for (int c = 0; c < 4; c++)
@@ -332,31 +238,6 @@ static void main_menu(void)
         if (ImGui::BeginMenu(GEARBOY_TITLE))
         {
             gui_in_use = true;
-
-            if (ImGui::MenuItem("Open ROM...", config_hotkeys[config_HotkeyIndex_OpenROM].str))
-            {
-                open_rom = true;
-            }
-
-            if (ImGui::BeginMenu("Open Recent"))
-            {
-                for (int i = 0; i < config_max_recent_roms; i++)
-                {
-                    if (config_emulator.recent_roms[i].length() > 0)
-                    {
-                        if (ImGui::MenuItem(config_emulator.recent_roms[i].c_str()))
-                        {
-                            char rom_path[4096];
-                            strcpy(rom_path, config_emulator.recent_roms[i].c_str());
-                            gui_load_rom(rom_path);
-                        }
-                    }
-                }
-
-                ImGui::EndMenu();
-            }
-
-            ImGui::Separator();
             
             if (ImGui::MenuItem("Reset", config_hotkeys[config_HotkeyIndex_Reset].str))
             {
@@ -381,18 +262,6 @@ static void main_menu(void)
                 ImGui::Combo("##fwd", &config_emulator.ffwd_speed, "X 1.5\0X 2\0X 2.5\0X 3\0Unlimited\0\0");
                 ImGui::PopItemWidth();
                 ImGui::EndMenu();
-            }
-
-            ImGui::Separator();
-
-            if (ImGui::MenuItem("Save RAM As...")) 
-            {
-                save_ram = true;
-            }
-
-            if (ImGui::MenuItem("Load RAM From..."))
-            {
-                open_ram = true;
             }
 
             ImGui::Separator();
@@ -461,66 +330,13 @@ static void main_menu(void)
 
             if (ImGui::MenuItem("Force Game Boy (DMG)", "", &config_emulator.force_dmg))
             {
-                if (config_emulator.force_dmg)
-                    config_emulator.force_gba = false;
-            }
 
-            if (ImGui::MenuItem("Force Game Boy Advance", "", &config_emulator.force_gba))
-            {
-                if (config_emulator.force_gba)
-                    config_emulator.force_dmg = false;
             }
 
             if (ImGui::BeginMenu("Memory Bank Controller"))
             {
                 ImGui::PushItemWidth(140.0f);
                 ImGui::Combo("##mbc", &config_emulator.mbc, "Auto\0ROM Only\0MBC 1\0MBC 2\0MBC 3\0MBC 5\0MBC 1 Multicart\0\0");
-                ImGui::PopItemWidth();
-                ImGui::EndMenu();
-            }
-
-            ImGui::Separator();
-
-            if (ImGui::BeginMenu("DMG Bootrom"))
-            {
-                if (ImGui::MenuItem("Enable", "", &config_emulator.dmg_bootrom))
-                {
-                    emu_enable_bootrom_dmg(config_emulator.dmg_bootrom);
-                }
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("When the bootrom is enabled it will execute as in original hardware,\ncausing invalid roms to lock or forcing hardware like GB Pocket or GBA.");
-                if (ImGui::MenuItem("Load Bootrom...")) 
-                {
-                    open_dmg_bootrom = true;
-                }
-                ImGui::PushItemWidth(350);
-                if (ImGui::InputText("##dmg_bootrom_path", dmg_bootrom_path, IM_ARRAYSIZE(dmg_bootrom_path), ImGuiInputTextFlags_AutoSelectAll))
-                {
-                    config_emulator.dmg_bootrom_path.assign(dmg_bootrom_path);
-                    emu_load_bootrom_dmg(dmg_bootrom_path);
-                }
-                ImGui::PopItemWidth();
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("GBC Bootrom"))
-            {
-                if (ImGui::MenuItem("Enable", "", &config_emulator.gbc_bootrom))
-                {
-                    emu_enable_bootrom_gbc(config_emulator.gbc_bootrom);
-                }
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("When the bootrom is enabled it will execute as in original hardware,\ncausing invalid roms to lock or forcing hardware like GB Pocket or GBA.");
-                if (ImGui::MenuItem("Load Bootrom...")) 
-                {
-                    open_gbc_bootrom = true;
-                }
-                ImGui::PushItemWidth(350);
-                if (ImGui::InputText("##gbc_bootrom_path", gbc_bootrom_path, IM_ARRAYSIZE(gbc_bootrom_path), ImGuiInputTextFlags_AutoSelectAll))
-                {
-                    config_emulator.gbc_bootrom_path.assign(gbc_bootrom_path);
-                    emu_load_bootrom_gbc(gbc_bootrom_path);
-                }
                 ImGui::PopItemWidth();
                 ImGui::EndMenu();
             }
@@ -595,69 +411,13 @@ static void main_menu(void)
             ImGui::Separator();
             
             ImGui::SetNextWindowSizeConstraints({300.0f, 200.0f}, {300.0f, 500.0f});
-            if (ImGui::BeginMenu("Cheats"))
-            {
-                ImGui::Text("Game Genie or GameShark codes\n(one code per line):");
-
-                ImGui::Columns(2, "cheats", false);
-
-                static char cheat_buffer[20*50] = "";
-                ImGui::PushItemWidth(150);
-                ImGui::InputTextMultiline("##cheats_input", cheat_buffer, IM_ARRAYSIZE(cheat_buffer));
-                ImGui::PopItemWidth();
-
-                ImGui::NextColumn();
-
-                if (ImGui::Button("Add Cheat Codes"))
-                {
-                    std::string cheats = cheat_buffer;
-                    std::istringstream ss(cheats);
-                    std::string cheat;
-
-                    while (getline(ss, cheat))
-                    {
-                        if ((cheat_list.size() < 50) && ((cheat.length() == 7) || (cheat.length() == 8) || (cheat.length() == 11)))
-                        {
-                            cheat_list.push_back(cheat);
-                            emu_add_cheat(cheat.c_str());
-                            cheat_buffer[0] = 0;
-                        }
-                    }
-                }
-
-                if (cheat_list.size() > 0)
-                {
-                    if (ImGui::Button("Clear All"))
-                    {
-                        cheat_list.clear();
-                        emu_clear_cheats();
-                    }
-                }
-
-                ImGui::Columns(1);
-
-                std::list<std::string>::iterator it;
-
-                for (it = cheat_list.begin(); it != cheat_list.end(); it++)
-                {
-                    if ((it->length() == 7) || (it->length() == 11))
-                        ImGui::Text("Game Genie: %s", it->c_str());
-                    else
-                        ImGui::Text("GameShark: %s", it->c_str());
-                }                
-
-                ImGui::EndMenu();
-            }
-
-            ImGui::Separator();
-
+            
             if (ImGui::BeginMenu("Hotkeys"))
             {
                 gui_in_use = true;
 
                 if (ImGui::BeginMenu("General"))
                 {
-                    hotkey_configuration_item("Open ROM:", &config_hotkeys[config_HotkeyIndex_OpenROM]);
                     hotkey_configuration_item("Quit:", &config_hotkeys[config_HotkeyIndex_Quit]);
                     hotkey_configuration_item("Reset:", &config_hotkeys[config_HotkeyIndex_Reset]);
                     hotkey_configuration_item("Pause:", &config_hotkeys[config_HotkeyIndex_Pause]);
@@ -672,20 +432,6 @@ static void main_menu(void)
                     hotkey_configuration_item("Screenshot:", &config_hotkeys[config_HotkeyIndex_Screenshot]);
                     hotkey_configuration_item("Fullscreen:", &config_hotkeys[config_HotkeyIndex_Fullscreen]);
                     hotkey_configuration_item("Show Main Menu:", &config_hotkeys[config_HotkeyIndex_ShowMainMenu]);
-
-                    popup_modal_hotkey();
-
-                    ImGui::EndMenu();
-                }
-
-                if (ImGui::BeginMenu("Debug"))
-                {
-                    hotkey_configuration_item("Step:", &config_hotkeys[config_HotkeyIndex_DebugStep]);
-                    hotkey_configuration_item("Continue:", &config_hotkeys[config_HotkeyIndex_DebugContinue]);
-                    hotkey_configuration_item("Next Frame:", &config_hotkeys[config_HotkeyIndex_DebugNextFrame]);
-                    hotkey_configuration_item("Run to Cursor:", &config_hotkeys[config_HotkeyIndex_DebugRunToCursor]);
-                    hotkey_configuration_item("Toggle Breakpoint:", &config_hotkeys[config_HotkeyIndex_DebugBreakpoint]);
-                    hotkey_configuration_item("Go Back:", &config_hotkeys[config_HotkeyIndex_DebugGoBack]);
 
                     popup_modal_hotkey();
 
@@ -718,8 +464,7 @@ static void main_menu(void)
 
             if (ImGui::MenuItem("Resize Window to Content"))
             {
-                if (!config_debug.debug)
-                    application_trigger_fit_to_content(main_window_width, main_window_height + main_menu_height);
+                application_trigger_fit_to_content(main_window_width, main_window_height + main_menu_height);
             }
 
             ImGui::Separator();
@@ -833,12 +578,6 @@ static void main_menu(void)
                 ImGui::SameLine();
                 ImGui::Text("Normal Background");
 
-                ImGui::Separator();
-
-                ImGui::ColorEdit3("##debug_bg", config_video.background_color_debugger, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_Float);
-                ImGui::SameLine();
-                ImGui::Text("Debugger Background");
-
                 ImGui::EndMenu();
             }
 
@@ -862,6 +601,42 @@ static void main_menu(void)
 
                 popup_modal_keyboard();                 
                 
+                ImGui::EndMenu();
+            }
+
+            ImGui::Separator();
+
+            if (ImGui::BeginMenu("Keyboard Configuration (2)"))
+            {
+                keyboard_configuration_item("Left:", &config_input.key_alt_left);
+                keyboard_configuration_item("Right:", &config_input.key_alt_right);
+                keyboard_configuration_item("Up:", &config_input.key_alt_up);
+                keyboard_configuration_item("Down:", &config_input.key_alt_down);
+                keyboard_configuration_item("A:", &config_input.key_alt_a);
+                keyboard_configuration_item("B:", &config_input.key_alt_b);
+                keyboard_configuration_item("Start:", &config_input.key_alt_start);
+                keyboard_configuration_item("Select:", &config_input.key_alt_select);
+
+                popup_modal_keyboard();
+
+                ImGui::EndMenu();
+            }
+
+            ImGui::Separator();
+
+            if (ImGui::BeginMenu("Keyboard Configuration (3)"))
+            {
+                keyboard_configuration_item("Left:", &config_input.key_alt2_left);
+                keyboard_configuration_item("Right:", &config_input.key_alt2_right);
+                keyboard_configuration_item("Up:", &config_input.key_alt2_up);
+                keyboard_configuration_item("Down:", &config_input.key_alt2_down);
+                keyboard_configuration_item("A:", &config_input.key_alt2_a);
+                keyboard_configuration_item("B:", &config_input.key_alt2_b);
+                keyboard_configuration_item("Start:", &config_input.key_alt2_start);
+                keyboard_configuration_item("Select:", &config_input.key_alt2_select);
+
+                popup_modal_keyboard();
+
                 ImGui::EndMenu();
             }
 
@@ -948,135 +723,6 @@ static void main_menu(void)
                 }
             }
 
-#ifndef GEARBOY_DISABLE_VGMRECORDER
-            ImGui::Separator();
-
-            bool is_recording = emu_is_vgm_recording();
-
-            if (ImGui::MenuItem("Start VGM Recording...", "", false, !is_recording && !emu_is_empty()))
-            {
-                save_vgm = true;
-            }
-
-            if (ImGui::MenuItem("Stop VGM Recording", "", false, is_recording))
-            {
-                emu_stop_vgm_recording();
-                gui_set_status_message("VGM recording stopped", 3000);
-            }
-#endif
-
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Debug"))
-        {
-            gui_in_use = true;
-
-            if (ImGui::MenuItem("Enable", "", &config_debug.debug))
-            {
-                if (config_debug.debug)
-                    emu_debug_step();
-                else
-                    emu_debug_continue();
-            }
-
-            ImGui::Separator();
-
-            if (ImGui::MenuItem("Step Over", config_hotkeys[config_HotkeyIndex_DebugStep].str, (void*)0, config_debug.debug))
-            {
-                emu_debug_step();
-            }
-
-            if (ImGui::MenuItem("Step Frame", config_hotkeys[config_HotkeyIndex_DebugNextFrame].str, (void*)0, config_debug.debug))
-            {
-                emu_debug_next_frame();
-                gui_debug_memory_step_frame();
-            }
-
-            if (ImGui::MenuItem("Continue", config_hotkeys[config_HotkeyIndex_DebugContinue].str, (void*)0, config_debug.debug))
-            {
-                emu_debug_continue();
-            }
-
-            if (ImGui::MenuItem("Run To Cursor", config_hotkeys[config_HotkeyIndex_DebugRunToCursor].str, (void*)0, config_debug.debug))
-            {
-                gui_debug_runtocursor();
-            }
-
-            ImGui::Separator();
-
-            if (ImGui::MenuItem("Go Back", config_hotkeys[config_HotkeyIndex_DebugGoBack].str, (void*)0, config_debug.debug))
-            {
-                gui_debug_go_back();
-            }
-
-            ImGui::Separator();
-
-            if (ImGui::MenuItem("Toggle Breakpoint", config_hotkeys[config_HotkeyIndex_DebugBreakpoint].str, (void*)0, config_debug.debug))
-            {
-                gui_debug_toggle_breakpoint();
-            }
-
-            if (ImGui::MenuItem("Clear All Processor Breakpoints", 0, (void*)0, config_debug.debug))
-            {
-                gui_debug_reset_breakpoints_cpu();
-            }
-
-            if (ImGui::MenuItem("Clear All Memory Breakpoints", 0, (void*)0, config_debug.debug))
-            {
-                gui_debug_reset_breakpoints_mem();
-            }
-
-            ImGui::MenuItem("Disable All Processor Breakpoints", 0, &emu_debug_disable_breakpoints_cpu, config_debug.debug);
-
-            ImGui::MenuItem("Disable All Memory Breakpoints", 0, &emu_debug_disable_breakpoints_mem, config_debug.debug);
-
-            ImGui::Separator();
-
-            if (ImGui::BeginMenu("Font Size", config_debug.debug))
-            {
-                ImGui::PushItemWidth(110.0f);
-                if (ImGui::Combo("##font", &config_debug.font_size, "Very Small\0Small\0Medium\0Large\0\0"))
-                {
-                    gui_default_font = default_font[config_debug.font_size];
-                }
-                ImGui::PopItemWidth();
-                ImGui::EndMenu();
-            }
-
-            ImGui::Separator();
-
-            ImGui::MenuItem("Show Game Boy Screen", "", &config_debug.show_gameboy, config_debug.debug);
-
-            ImGui::MenuItem("Show Disassembler", "", &config_debug.show_disassembler, config_debug.debug);
-
-            ImGui::MenuItem("Show Processor Status", "", &config_debug.show_processor, config_debug.debug);
-
-            ImGui::MenuItem("Show Memory Editor", "", &config_debug.show_memory, config_debug.debug);
-
-            ImGui::MenuItem("Show IO Map", "", &config_debug.show_iomap, config_debug.debug);
-
-            ImGui::MenuItem("Show VRAM Viewer", "", &config_debug.show_video, config_debug.debug);
-
-            ImGui::MenuItem("Show Sound Registers", "", &config_debug.show_audio, config_debug.debug);
-
-            ImGui::Separator();
-
-#if defined(__APPLE__) || defined(_WIN32)
-            ImGui::MenuItem("Multi-Viewport (Restart required)", "", &config_debug.multi_viewport, config_debug.debug);
-            ImGui::Separator();
-#endif
-
-            if (ImGui::MenuItem("Load Symbols...", "", (void*)0, config_debug.debug))
-            {
-                open_symbols = true;
-            }
-
-            if (ImGui::MenuItem("Clear Symbols", "", (void*)0, config_debug.debug))
-            {
-                gui_debug_reset_symbols();
-            }
-
             ImGui::EndMenu();
         }
 
@@ -1096,18 +742,6 @@ static void main_menu(void)
         ImGui::EndMainMenuBar();       
     }
 
-    if (open_rom || shortcut_open_rom)
-    {
-        shortcut_open_rom = false;
-        file_dialog_open_rom();
-    }
-
-    if (open_ram)
-        file_dialog_load_ram();
-
-    if (save_ram)
-        file_dialog_save_ram();
-
     if (open_state)
         file_dialog_load_state();
     
@@ -1117,23 +751,11 @@ static void main_menu(void)
     if (save_screenshot)
         file_dialog_save_screenshot();
 
-    if (save_vgm)
-        file_dialog_save_vgm();
-
     if (choose_save_file_path)
         file_dialog_choose_save_file_path();
 
     if (choose_savestates_path)
         file_dialog_choose_savestate_path();
-
-    if (open_dmg_bootrom)
-        file_dialog_load_dmg_bootrom();
-    
-    if (open_gbc_bootrom)
-        file_dialog_load_gbc_bootrom();
-
-    if (open_symbols)
-        file_dialog_load_symbols();
 
     if (open_about)
     {
@@ -1153,7 +775,7 @@ static void main_window(void)
     int w = (int)ImGui::GetIO().DisplaySize.x;
     int h = (int)ImGui::GetIO().DisplaySize.y - (application_show_menu ? main_menu_height : 0);
 
-    int selected_ratio = config_debug.debug ? 0 : config_video.ratio;
+    int selected_ratio = config_video.ratio;
     float ratio = (float)GAMEBOY_WIDTH / (float)GAMEBOY_HEIGHT;
 
     switch (selected_ratio)
@@ -1171,7 +793,7 @@ static void main_window(void)
             ratio = (float)GAMEBOY_WIDTH / (float)GAMEBOY_HEIGHT;
     }
 
-    if (!config_debug.debug && config_video.scale == 3)
+    if (config_video.scale == 3)
     {
         ratio = (float)w / (float)h;
     }
@@ -1180,17 +802,8 @@ static void main_window(void)
     int h_corrected = GAMEBOY_HEIGHT;
     int scale_multiplier = 0;
 
-    if (config_debug.debug)
+    switch (config_video.scale)
     {
-        if (config_video.scale != 0)
-            scale_multiplier = config_video.scale_manual;
-        else
-            scale_multiplier = 1;
-    }
-    else
-    {
-        switch (config_video.scale)
-        {
         case 0:
         {
             int factor_w = w / w_corrected;
@@ -1214,7 +827,6 @@ static void main_window(void)
         default:
             scale_multiplier = 1;
             break;
-        }
     }
 
     main_window_width = w_corrected * scale_multiplier;
@@ -1225,29 +837,17 @@ static void main_window(void)
 
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar;
     
-    if (config_debug.debug)
-    {
-        flags |= ImGuiWindowFlags_AlwaysAutoResize;
+    int window_x = (w - (w_corrected * scale_multiplier)) / 2;
+    int window_y = ((h - (h_corrected * scale_multiplier)) / 2) + (application_show_menu ? main_menu_height : 0);
 
-        ImGui::SetNextWindowPos(ImVec2(7, 32), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2((float)main_window_width, (float)main_window_height));
+    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->Pos + ImVec2((float)window_x, (float)window_y));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
-        ImGui::Begin(emu_is_cgb() ? "Game Boy Color###debug_output" : "Game Boy###debug_output", &config_debug.show_gameboy, flags);
-        gui_main_window_hovered = ImGui::IsWindowHovered();
-    }
-    else
-    {
-        int window_x = (w - (w_corrected * scale_multiplier)) / 2;
-        int window_y = ((h - (h_corrected * scale_multiplier)) / 2) + (application_show_menu ? main_menu_height : 0);
+    flags |= ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoBringToFrontOnFocus;
 
-        ImGui::SetNextWindowSize(ImVec2((float)main_window_width, (float)main_window_height));
-        ImGui::SetNextWindowPos(ImGui::GetMainViewport()->Pos + ImVec2((float)window_x, (float)window_y));
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-
-        flags |= ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoBringToFrontOnFocus;
-
-        ImGui::Begin(GEARBOY_TITLE, 0, flags);
-        gui_main_window_hovered = ImGui::IsWindowHovered();
-    }
+    ImGui::Begin(GEARBOY_TITLE, 0, flags);
+    gui_main_window_hovered = ImGui::IsWindowHovered();
 
     ImGui::Image((ImTextureID)(intptr_t)renderer_emu_texture, ImVec2((float)main_window_width, (float)main_window_height));
 
@@ -1258,81 +858,7 @@ static void main_window(void)
 
     ImGui::PopStyleVar();
     ImGui::PopStyleVar();
-
-    if (!config_debug.debug)
-    {
-        ImGui::PopStyleVar();
-    }
-}
-
-static void file_dialog_open_rom(void)
-{
-    nfdchar_t *outPath;
-    nfdfilteritem_t filterItem[4] = { { "ROM Files", "gb,gbc,cgb,sgb,dmg,rom,zip" }, { "Game Boy", "gb,dmg" }, { "Game Boy Color", "gbc,cgb" }, { "Super Game Boy", "sgb" } };
-    nfdopendialogu8args_t args = { };
-    args.filterList = filterItem;
-    args.filterCount = 4;
-    args.defaultPath = config_emulator.last_open_path.c_str();
-    file_dialog_set_native_window(application_sdl_window, &args.parentWindow);
-
-    nfdresult_t result = NFD_OpenDialogU8_With(&outPath, &args);
-    if (result == NFD_OKAY)
-    {
-        std::string path = outPath;
-        std::string::size_type pos = path.find_last_of("\\/");
-        config_emulator.last_open_path.assign(path.substr(0, pos));
-        gui_load_rom(outPath);
-        NFD_FreePath(outPath);
-    }
-    else if (result != NFD_CANCEL)
-    {
-        Log("Open ROM Error: %s", NFD_GetError());
-    }
-}
-
-static void file_dialog_load_ram(void)
-{
-    nfdchar_t *outPath;
-    nfdfilteritem_t filterItem[1] = { { "RAM Files", "sav" } };
-    nfdopendialogu8args_t args = { };
-    args.filterList = filterItem;
-    args.filterCount = 1;
-    args.defaultPath = config_emulator.last_open_path.c_str();
-    file_dialog_set_native_window(application_sdl_window, &args.parentWindow);
-
-    nfdresult_t result = NFD_OpenDialogU8_With(&outPath, &args);
-    if (result == NFD_OKAY)
-    {
-        emu_load_ram(outPath, config_emulator.force_dmg, get_mbc(config_emulator.mbc), config_emulator.force_gba);
-        NFD_FreePath(outPath);
-    }
-    else if (result != NFD_CANCEL)
-    {
-        Log("Load RAM Error: %s", NFD_GetError());
-    }
-}
-
-static void file_dialog_save_ram(void)
-{
-    nfdchar_t *outPath;
-    nfdfilteritem_t filterItem[1] = { { "RAM Files", "sav" } };
-    nfdsavedialogu8args_t args = { };
-    args.filterList = filterItem;
-    args.filterCount = 1;
-    args.defaultPath = config_emulator.last_open_path.c_str();
-    args.defaultName = NULL;
-    file_dialog_set_native_window(application_sdl_window, &args.parentWindow);
-
-    nfdresult_t result = NFD_SaveDialogU8_With(&outPath, &args);
-    if (result == NFD_OKAY)
-    {
-        emu_save_ram(outPath);
-        NFD_FreePath(outPath);
-    }
-    else if (result != NFD_CANCEL)
-    {
-        Log("Save RAM Error: %s", NFD_GetError());
-    }
+    ImGui::PopStyleVar();
 }
 
 static void file_dialog_load_state(void)
@@ -1426,77 +952,6 @@ static void file_dialog_choose_savestate_path(void)
     }
 }
 
-static void file_dialog_load_dmg_bootrom(void)
-{
-    nfdchar_t *outPath;
-    nfdfilteritem_t filterItem[1] = { { "BIOS Files", "bin,rom,bios,gb" } };
-    nfdopendialogu8args_t args = { };
-    args.filterList = filterItem;
-    args.filterCount = 1;
-    args.defaultPath = config_emulator.last_open_path.c_str();
-    file_dialog_set_native_window(application_sdl_window, &args.parentWindow);
-
-    nfdresult_t result = NFD_OpenDialogU8_With(&outPath, &args);
-    if (result == NFD_OKAY)
-    {
-        strcpy(dmg_bootrom_path, outPath);
-        config_emulator.dmg_bootrom_path.assign(outPath);
-        emu_load_bootrom_dmg(dmg_bootrom_path);
-        NFD_FreePath(outPath);
-    }
-    else if (result != NFD_CANCEL)
-    {
-        Log("Load SMS Bios Error: %s", NFD_GetError());
-    }
-}
-
-static void file_dialog_load_gbc_bootrom(void)
-{
-    nfdchar_t *outPath;
-    nfdfilteritem_t filterItem[1] = { { "BIOS Files", "bin,rom,bios,gbc" } };
-    nfdopendialogu8args_t args = { };
-    args.filterList = filterItem;
-    args.filterCount = 1;
-    args.defaultPath = config_emulator.last_open_path.c_str();
-    file_dialog_set_native_window(application_sdl_window, &args.parentWindow);
-
-    nfdresult_t result = NFD_OpenDialogU8_With(&outPath, &args);
-    if (result == NFD_OKAY)
-    {
-        strcpy(gbc_bootrom_path, outPath);
-        config_emulator.gbc_bootrom_path.assign(outPath);
-        emu_load_bootrom_gbc(gbc_bootrom_path);
-        NFD_FreePath(outPath);
-    }
-    else if (result != NFD_CANCEL)
-    {
-        Log("Load SMS Bios Error: %s", NFD_GetError());
-    }
-}
-
-static void file_dialog_load_symbols(void)
-{
-    nfdchar_t *outPath;
-    nfdfilteritem_t filterItem[1] = { { "Symbol Files", "sym" } };
-    nfdopendialogu8args_t args = { };
-    args.filterList = filterItem;
-    args.filterCount = 1;
-    args.defaultPath = NULL;
-    file_dialog_set_native_window(application_sdl_window, &args.parentWindow);
-
-    nfdresult_t result = NFD_OpenDialogU8_With(&outPath, &args);
-    if (result == NFD_OKAY)
-    {
-        gui_debug_reset_symbols();
-        gui_debug_load_symbols_file(outPath);
-        NFD_FreePath(outPath);
-    }
-    else if (result != NFD_CANCEL)
-    {
-        Log("Load Symbols Error: %s", NFD_GetError());
-    }
-}
-
 static void file_dialog_save_screenshot(void)
 {
     nfdchar_t *outPath;
@@ -1517,30 +972,6 @@ static void file_dialog_save_screenshot(void)
     else if (result != NFD_CANCEL)
     {
         Log("Save Screenshot Error: %s", NFD_GetError());
-    }
-}
-
-static void file_dialog_save_vgm(void)
-{
-    nfdchar_t *outPath;
-    nfdfilteritem_t filterItem[1] = { { "VGM Files", "vgm" } };
-    nfdsavedialogu8args_t args = { };
-    args.filterList = filterItem;
-    args.filterCount = 1;
-    args.defaultPath = NULL;
-    args.defaultName = NULL;
-    file_dialog_set_native_window(application_sdl_window, &args.parentWindow);
-
-    nfdresult_t result = NFD_SaveDialogU8_With(&outPath, &args);
-    if (result == NFD_OKAY)
-    {
-        emu_start_vgm_recording(outPath);
-        gui_set_status_message("VGM recording started", 3000);
-        NFD_FreePath(outPath);
-    }
-    else if (result != NFD_CANCEL)
-    {
-        Log("Save VGM Error: %s", NFD_GetError());
     }
 }
 
@@ -1862,6 +1293,18 @@ static void popup_modal_about(void)
         ImGui::TextLinkOpenURL("https://x.com/drhelius");
         ImGui::NewLine();
 
+        if (ApplicationSettings::title.c_str() != GEARBOY_TITLE) ImGui::TextColored(orange, "  %s", ApplicationSettings::title.c_str());
+        if (ApplicationSettings::version.c_str() != "") {
+            ImGui::SameLine();
+            ImGui::Text("(%s)", ApplicationSettings::version.c_str());
+        }
+        if (ApplicationSettings::author.c_str() != "") ImGui::Text("  by %s", ApplicationSettings::author.c_str());
+        if (ApplicationSettings::website.c_str() != "") {
+            ImGui::Text(" "); ImGui::SameLine();
+            ImGui::TextLinkOpenURL(ApplicationSettings::website.c_str());
+        }
+        ImGui::NewLine();
+
         ImGui::PopFont();
 
         if (ImGui::BeginTabBar("##Tabs", ImGuiTabBarFlags_None))
@@ -1988,8 +1431,8 @@ static void popup_modal_about(void)
             ImGui::Text("%d game controller mappings added from gamecontrollerdb.txt", application_added_gamepad_mappings);
             ImGui::Text("%d game controller mappings updated from gamecontrollerdb.txt", application_updated_gamepad_mappings);
         }
-        else
-            ImGui::Text("ERROR: Game controller database not found (gamecontrollerdb.txt)!!");
+        //else
+            //ImGui::Text("ERROR: Game controller database not found (gamecontrollerdb.txt)!!");
 
         ImGui::Separator();
         ImGui::NewLine();
@@ -2061,7 +1504,7 @@ static void menu_reset(void)
     gui_set_status_message("Resetting...", 3000);
 
     emu_resume();
-    emu_reset(config_emulator.force_dmg, get_mbc(config_emulator.mbc), config_emulator.force_gba);
+    emu_reset(config_emulator.force_dmg, get_mbc(config_emulator.mbc));
 
     if (config_emulator.start_paused)
     {
@@ -2128,7 +1571,7 @@ static void show_fps(void)
 {
     ImGui::PushFont(gui_default_font);
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f,1.0f,1.0f,1.0f));
-    ImGui::SetCursorPos(ImVec2(5.0f, config_debug.debug ? 25.0f : 5.0f));
+    ImGui::SetCursorPos(ImVec2(5.0f, 5.0f));
     ImGui::Text("FPS:  %.2f\nTIME: %.2f ms", ImGui::GetIO().Framerate, 1000.0f / ImGui::GetIO().Framerate);
     ImGui::PopStyleColor();
     ImGui::PopFont();
@@ -2307,7 +1750,7 @@ static void set_style(void)
     style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.1450980454683304f, 0.1450980454683304f, 0.1490196138620377f, 0.7f);
 
     style.Colors[ImGuiCol_DockingPreview] = style.Colors[ImGuiCol_HeaderActive] * ImVec4(1.0f, 1.0f, 1.0f, 0.7f);
-    style.Colors[ImGuiCol_DockingEmptyBg] = ImVec4(config_video.background_color_debugger[0], config_video.background_color_debugger[1], config_video.background_color_debugger[2], 1.00f);
+    //style.Colors[ImGuiCol_DockingEmptyBg] = ImVec4(config_video.background_color_debugger[0], config_video.background_color_debugger[1], config_video.background_color_debugger[2], 1.00f);
     style.Colors[ImGuiCol_TabHovered] = style.Colors[ImGuiCol_HeaderHovered];
     //style.Colors[ImGuiCol_Tab] = lerp(style.Colors[ImGuiCol_Header], style.Colors[ImGuiCol_TitleBgActive], 0.80f);
     style.Colors[ImGuiCol_TabSelected] = lerp(style.Colors[ImGuiCol_HeaderActive], style.Colors[ImGuiCol_TitleBgActive], 0.60f);

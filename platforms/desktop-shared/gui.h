@@ -38,14 +38,6 @@ enum gui_ShortCutEvent
     gui_ShortcutSaveState,
     gui_ShortcutLoadState,
     gui_ShortcutScreenshot,
-    gui_ShortcutDebugStep,
-    gui_ShortcutDebugContinue,
-    gui_ShortcutDebugNextFrame,
-    gui_ShortcutDebugBreakpoint,
-    gui_ShortcutDebugRuntocursor,
-    gui_ShortcutDebugGoBack,
-    gui_ShortcutDebugCopy,
-    gui_ShortcutDebugPaste,
     gui_ShortcutShowMainMenu
 };
 
@@ -67,12 +59,6 @@ const gui_HotkeyMapping gui_hotkey_map[GUI_HOTKEY_MAP_COUNT] = {
     {gui_ShortcutLoadState, config_HotkeyIndex_LoadState, false},
     {gui_ShortcutScreenshot, config_HotkeyIndex_Screenshot, false},
     {gui_ShortcutShowMainMenu, config_HotkeyIndex_ShowMainMenu, false},
-    {gui_ShortcutDebugStep, config_HotkeyIndex_DebugStep, true},
-    {gui_ShortcutDebugContinue, config_HotkeyIndex_DebugContinue, true},
-    {gui_ShortcutDebugNextFrame, config_HotkeyIndex_DebugNextFrame, true},
-    {gui_ShortcutDebugRuntocursor, config_HotkeyIndex_DebugRunToCursor, false},
-    {gui_ShortcutDebugBreakpoint, config_HotkeyIndex_DebugBreakpoint, false},
-    {gui_ShortcutDebugGoBack, config_HotkeyIndex_DebugGoBack, false},
 };
 
 EXTERN bool gui_in_use;
@@ -86,7 +72,7 @@ EXTERN bool gui_init(void);
 EXTERN void gui_destroy(void);
 EXTERN void gui_render(void);
 EXTERN void gui_shortcut(gui_ShortCutEvent event);
-EXTERN void gui_load_rom(const char* path);
+EXTERN void gui_load_internal_rom();
 EXTERN void gui_set_status_message(const char* message, u32 milliseconds);
 
 #undef GUI_IMPORT

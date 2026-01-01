@@ -37,17 +37,6 @@ MemoryRule::~MemoryRule()
 
 }
 
-void MemoryRule::SaveRam(std::ostream&)
-{
-    Debug("MemoryRule::SaveRam not implemented");
-}
-
-bool MemoryRule::LoadRam(std::istream&, s32)
-{
-    Debug("MemoryRule::LoadRam not implemented");
-    return false;
-}
-
 void MemoryRule::SetRamChangedCallback(RamChangedCallback callback)
 {
     m_pRamChangedCallback = callback;

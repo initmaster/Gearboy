@@ -52,7 +52,6 @@ void config_init(void)
     strcpy(config_imgui_file_path, config_root_path);
     strcat(config_imgui_file_path, "imgui.ini");
 
-    config_hotkeys[config_HotkeyIndex_OpenROM] = make_hotkey(SDL_SCANCODE_O, KMOD_CTRL);
     config_hotkeys[config_HotkeyIndex_Quit] = make_hotkey(SDL_SCANCODE_Q, KMOD_CTRL);
     config_hotkeys[config_HotkeyIndex_Reset] = make_hotkey(SDL_SCANCODE_R, KMOD_CTRL);
     config_hotkeys[config_HotkeyIndex_Pause] = make_hotkey(SDL_SCANCODE_P, KMOD_CTRL);
@@ -62,12 +61,6 @@ void config_init(void)
     config_hotkeys[config_HotkeyIndex_Screenshot] = make_hotkey(SDL_SCANCODE_X, KMOD_CTRL);
     config_hotkeys[config_HotkeyIndex_Fullscreen] = make_hotkey(SDL_SCANCODE_F11, (SDL_Keymod)0);
     config_hotkeys[config_HotkeyIndex_ShowMainMenu] = make_hotkey(SDL_SCANCODE_M, KMOD_CTRL);
-    config_hotkeys[config_HotkeyIndex_DebugStep] = make_hotkey(SDL_SCANCODE_F10, KMOD_CTRL);
-    config_hotkeys[config_HotkeyIndex_DebugContinue] = make_hotkey(SDL_SCANCODE_F5, KMOD_CTRL);
-    config_hotkeys[config_HotkeyIndex_DebugNextFrame] = make_hotkey(SDL_SCANCODE_F6, KMOD_CTRL);
-    config_hotkeys[config_HotkeyIndex_DebugRunToCursor] = make_hotkey(SDL_SCANCODE_F8, KMOD_CTRL);
-    config_hotkeys[config_HotkeyIndex_DebugBreakpoint] = make_hotkey(SDL_SCANCODE_F9, KMOD_CTRL);
-    config_hotkeys[config_HotkeyIndex_DebugGoBack] = make_hotkey(SDL_SCANCODE_BACKSPACE, KMOD_CTRL);
     config_hotkeys[config_HotkeyIndex_SelectSlot1] = make_hotkey(SDL_SCANCODE_1, KMOD_CTRL);
     config_hotkeys[config_HotkeyIndex_SelectSlot2] = make_hotkey(SDL_SCANCODE_2, KMOD_CTRL);
     config_hotkeys[config_HotkeyIndex_SelectSlot3] = make_hotkey(SDL_SCANCODE_3, KMOD_CTRL);
@@ -98,17 +91,6 @@ void config_read(void)
 
     Log("Loading settings from %s", config_emu_file_path);
 
-    config_debug.debug = read_bool("Debug", "Debug", false);
-    config_debug.show_audio = read_bool("Debug", "Audio", false);
-    config_debug.show_disassembler = read_bool("Debug", "Disassembler", true);
-    config_debug.show_gameboy = read_bool("Debug", "GameBoy", true);
-    config_debug.show_iomap = read_bool("Debug", "IOMap", false);
-    config_debug.show_memory = read_bool("Debug", "Memory", true);
-    config_debug.show_processor = read_bool("Debug", "Processor", true);
-    config_debug.show_video = read_bool("Debug", "Video", false);
-    config_debug.font_size = read_int("Debug", "FontSize", 0);
-    config_debug.multi_viewport = read_bool("Debug", "MultiViewport", false);
-
     config_emulator.maximized = read_bool("Emulator", "Maximized", false);
     config_emulator.fullscreen = read_bool("Emulator", "FullScreen", false);
     config_emulator.always_show_menu = read_bool("Emulator", "AlwaysShowMenu", false);
@@ -117,12 +99,7 @@ void config_read(void)
     config_emulator.start_paused = read_bool("Emulator", "StartPaused", false);
     config_emulator.pause_when_inactive = read_bool("Emulator", "PauseWhenInactive", true);
     config_emulator.force_dmg = read_bool("Emulator", "ForceDMG", false);
-    config_emulator.force_gba = read_bool("Emulator", "ForceGBA", false);
     config_emulator.mbc = read_int("Emulator", "MBC", 0);
-    config_emulator.dmg_bootrom = read_bool("Emulator", "DMGBootrom", false);
-    config_emulator.dmg_bootrom_path = read_string("Emulator", "DMGBootromPath");
-    config_emulator.gbc_bootrom = read_bool("Emulator", "GBCBootrom", false);
-    config_emulator.gbc_bootrom_path = read_string("Emulator", "GBCBootromPath");
     config_emulator.savefiles_dir_option = read_int("Emulator", "SaveFilesDirOption", 0);
     config_emulator.savefiles_path = read_string("Emulator", "SaveFilesPath");
     config_emulator.savestates_dir_option = read_int("Emulator", "SaveStatesDirOption", 0);
@@ -179,21 +156,36 @@ void config_read(void)
     config_video.background_color[0] = read_float("Video", "BackgroundColorR", 0.1f);
     config_video.background_color[1] = read_float("Video", "BackgroundColorG", 0.1f);
     config_video.background_color[2] = read_float("Video", "BackgroundColorB", 0.1f);
-    config_video.background_color_debugger[0] = read_float("Video", "BackgroundColorDebuggerR", 0.2f);
-    config_video.background_color_debugger[1] = read_float("Video", "BackgroundColorDebuggerG", 0.2f);
-    config_video.background_color_debugger[2] = read_float("Video", "BackgroundColorDebuggerB", 0.2f);
     
     config_audio.enable = read_bool("Audio", "Enable", true);
     config_audio.sync = read_bool("Audio", "Sync", true);
 
-    config_input.key_left = (SDL_Scancode)read_int("Input", "KeyLeft", SDL_SCANCODE_LEFT);
-    config_input.key_right = (SDL_Scancode)read_int("Input", "KeyRight", SDL_SCANCODE_RIGHT);
-    config_input.key_up = (SDL_Scancode)read_int("Input", "KeyUp", SDL_SCANCODE_UP);
-    config_input.key_down = (SDL_Scancode)read_int("Input", "KeyDown", SDL_SCANCODE_DOWN);
-    config_input.key_a = (SDL_Scancode)read_int("Input", "KeyA", SDL_SCANCODE_A);
-    config_input.key_b = (SDL_Scancode)read_int("Input", "KeyB", SDL_SCANCODE_S);
-    config_input.key_start = (SDL_Scancode)read_int("Input", "KeyStart", SDL_SCANCODE_RETURN);
-    config_input.key_select = (SDL_Scancode)read_int("Input", "KeySelect", SDL_SCANCODE_SPACE);
+    config_input.key_left = (SDL_Scancode)read_int("Input", "KeyLeft", SDL_SCANCODE_UNKNOWN);
+    config_input.key_right = (SDL_Scancode)read_int("Input", "KeyRight", SDL_SCANCODE_UNKNOWN);
+    config_input.key_up = (SDL_Scancode)read_int("Input", "KeyUp", SDL_SCANCODE_UNKNOWN);
+    config_input.key_down = (SDL_Scancode)read_int("Input", "KeyDown", SDL_SCANCODE_UNKNOWN);
+    config_input.key_a = (SDL_Scancode)read_int("Input", "KeyA", SDL_SCANCODE_UNKNOWN);
+    config_input.key_b = (SDL_Scancode)read_int("Input", "KeyB", SDL_SCANCODE_UNKNOWN);
+    config_input.key_start = (SDL_Scancode)read_int("Input", "KeyStart", SDL_SCANCODE_UNKNOWN);
+    config_input.key_select = (SDL_Scancode)read_int("Input", "KeySelect", SDL_SCANCODE_UNKNOWN);
+
+    config_input.key_alt_left = (SDL_Scancode)read_int("Input", "KeyLeft_Alt", SDL_SCANCODE_UNKNOWN);
+    config_input.key_alt_right = (SDL_Scancode)read_int("Input", "KeyRight_Alt", SDL_SCANCODE_UNKNOWN);
+    config_input.key_alt_up = (SDL_Scancode)read_int("Input", "KeyUp_Alt", SDL_SCANCODE_UNKNOWN);
+    config_input.key_alt_down = (SDL_Scancode)read_int("Input", "KeyDown_Alt", SDL_SCANCODE_UNKNOWN);
+    config_input.key_alt_a = (SDL_Scancode)read_int("Input", "KeyA_Alt", SDL_SCANCODE_UNKNOWN);
+    config_input.key_alt_b = (SDL_Scancode)read_int("Input", "KeyB_Alt", SDL_SCANCODE_UNKNOWN);
+    config_input.key_alt_start = (SDL_Scancode)read_int("Input", "KeyStart_Alt", SDL_SCANCODE_UNKNOWN);
+    config_input.key_alt_select = (SDL_Scancode)read_int("Input", "KeySelect_Alt", SDL_SCANCODE_UNKNOWN);
+
+    config_input.key_alt2_left = (SDL_Scancode)read_int("Input", "KeyLeft_Alt_2", SDL_SCANCODE_UNKNOWN);
+    config_input.key_alt2_right = (SDL_Scancode)read_int("Input", "KeyRight_Alt_2", SDL_SCANCODE_UNKNOWN);
+    config_input.key_alt2_up = (SDL_Scancode)read_int("Input", "KeyUp_Alt_2", SDL_SCANCODE_UNKNOWN);
+    config_input.key_alt2_down = (SDL_Scancode)read_int("Input", "KeyDown_Alt_2", SDL_SCANCODE_UNKNOWN);
+    config_input.key_alt2_a = (SDL_Scancode)read_int("Input", "KeyA_Alt_2", SDL_SCANCODE_UNKNOWN);
+    config_input.key_alt2_b = (SDL_Scancode)read_int("Input", "KeyB_Alt_2", SDL_SCANCODE_UNKNOWN);
+    config_input.key_alt2_start = (SDL_Scancode)read_int("Input", "KeyStart_Alt_2", SDL_SCANCODE_UNKNOWN);
+    config_input.key_alt2_select = (SDL_Scancode)read_int("Input", "KeySelect_Alt_2", SDL_SCANCODE_UNKNOWN);
 
     config_input.gamepad = read_bool("Input", "Gamepad", true);
     config_input.gamepad_directional = read_int("Input", "GamepadDirectional", 0);
@@ -214,7 +206,6 @@ void config_read(void)
     }
 
     // Read hotkeys
-    config_hotkeys[config_HotkeyIndex_OpenROM] = read_hotkey("Hotkeys", "OpenROM", make_hotkey(SDL_SCANCODE_O, KMOD_CTRL));
     config_hotkeys[config_HotkeyIndex_Quit] = read_hotkey("Hotkeys", "Quit", make_hotkey(SDL_SCANCODE_Q, KMOD_CTRL));
     config_hotkeys[config_HotkeyIndex_Reset] = read_hotkey("Hotkeys", "Reset", make_hotkey(SDL_SCANCODE_R, KMOD_CTRL));
     config_hotkeys[config_HotkeyIndex_Pause] = read_hotkey("Hotkeys", "Pause", make_hotkey(SDL_SCANCODE_P, KMOD_CTRL));
@@ -224,12 +215,6 @@ void config_read(void)
     config_hotkeys[config_HotkeyIndex_Screenshot] = read_hotkey("Hotkeys", "Screenshot", make_hotkey(SDL_SCANCODE_X, KMOD_CTRL));
     config_hotkeys[config_HotkeyIndex_Fullscreen] = read_hotkey("Hotkeys", "Fullscreen", make_hotkey(SDL_SCANCODE_F11, KMOD_NONE));
     config_hotkeys[config_HotkeyIndex_ShowMainMenu] = read_hotkey("Hotkeys", "ShowMainMenu", make_hotkey(SDL_SCANCODE_M, KMOD_CTRL));
-    config_hotkeys[config_HotkeyIndex_DebugStep] = read_hotkey("Hotkeys", "DebugStep", make_hotkey(SDL_SCANCODE_F10, KMOD_CTRL));
-    config_hotkeys[config_HotkeyIndex_DebugContinue] = read_hotkey("Hotkeys", "DebugContinue", make_hotkey(SDL_SCANCODE_F5, KMOD_CTRL));
-    config_hotkeys[config_HotkeyIndex_DebugNextFrame] = read_hotkey("Hotkeys", "DebugNextFrame", make_hotkey(SDL_SCANCODE_F6, KMOD_CTRL));
-    config_hotkeys[config_HotkeyIndex_DebugRunToCursor] = read_hotkey("Hotkeys", "DebugRunToCursor", make_hotkey(SDL_SCANCODE_F8, KMOD_CTRL));
-    config_hotkeys[config_HotkeyIndex_DebugBreakpoint] = read_hotkey("Hotkeys", "DebugBreakpoint", make_hotkey(SDL_SCANCODE_F9, KMOD_CTRL));
-    config_hotkeys[config_HotkeyIndex_DebugGoBack] = read_hotkey("Hotkeys", "DebugGoBack", make_hotkey(SDL_SCANCODE_BACKSPACE, KMOD_CTRL));
     config_hotkeys[config_HotkeyIndex_SelectSlot1] = read_hotkey("Hotkeys", "SelectSlot1", make_hotkey(SDL_SCANCODE_1, KMOD_CTRL));
     config_hotkeys[config_HotkeyIndex_SelectSlot2] = read_hotkey("Hotkeys", "SelectSlot2", make_hotkey(SDL_SCANCODE_2, KMOD_CTRL));
     config_hotkeys[config_HotkeyIndex_SelectSlot3] = read_hotkey("Hotkeys", "SelectSlot3", make_hotkey(SDL_SCANCODE_3, KMOD_CTRL));
@@ -246,17 +231,6 @@ void config_write(void)
     if (config_emulator.ffwd)
         config_audio.sync = true;
 
-    write_bool("Debug", "Debug", config_debug.debug);
-    write_bool("Debug", "Audio", config_debug.show_audio);
-    write_bool("Debug", "Disassembler", config_debug.show_disassembler);
-    write_bool("Debug", "GameBoy", config_debug.show_gameboy);
-    write_bool("Debug", "IOMap", config_debug.show_iomap);
-    write_bool("Debug", "Memory", config_debug.show_memory);
-    write_bool("Debug", "Processor", config_debug.show_processor);
-    write_bool("Debug", "Video", config_debug.show_video);
-    write_int("Debug", "FontSize", config_debug.font_size);
-    write_bool("Debug", "MultiViewport", config_debug.multi_viewport);
-
     write_bool("Emulator", "Maximized", config_emulator.maximized);
     write_bool("Emulator", "FullScreen", config_emulator.fullscreen);
     write_bool("Emulator", "AlwaysShowMenu", config_emulator.always_show_menu);
@@ -265,12 +239,7 @@ void config_write(void)
     write_bool("Emulator", "StartPaused", config_emulator.start_paused);
     write_bool("Emulator", "PauseWhenInactive", config_emulator.pause_when_inactive);
     write_bool("Emulator", "ForceDMG", config_emulator.force_dmg);
-    write_bool("Emulator", "ForceGBA", config_emulator.force_gba);
     write_int("Emulator", "MBC", config_emulator.mbc);
-    write_bool("Emulator", "DMGBootrom", config_emulator.dmg_bootrom);
-    write_string("Emulator", "DMGBootromPath", config_emulator.dmg_bootrom_path);
-    write_bool("Emulator", "GBCBootrom", config_emulator.gbc_bootrom);
-    write_string("Emulator", "GBCBootromPath", config_emulator.gbc_bootrom_path);
     write_int("Emulator", "SaveFilesDirOption", config_emulator.savefiles_dir_option);
     write_string("Emulator", "SaveFilesPath", config_emulator.savefiles_path);
     write_int("Emulator", "SaveStatesDirOption", config_emulator.savestates_dir_option);
@@ -316,9 +285,6 @@ void config_write(void)
     write_float("Video", "BackgroundColorR", config_video.background_color[0]);
     write_float("Video", "BackgroundColorG", config_video.background_color[1]);
     write_float("Video", "BackgroundColorB", config_video.background_color[2]);
-    write_float("Video", "BackgroundColorDebuggerR", config_video.background_color_debugger[0]);
-    write_float("Video", "BackgroundColorDebuggerG", config_video.background_color_debugger[1]);
-    write_float("Video", "BackgroundColorDebuggerB", config_video.background_color_debugger[2]);
 
     write_bool("Audio", "Enable", config_audio.enable);
     write_bool("Audio", "Sync", config_audio.sync);
@@ -331,6 +297,24 @@ void config_write(void)
     write_int("Input", "KeyB", config_input.key_b);
     write_int("Input", "KeyStart", config_input.key_start);
     write_int("Input", "KeySelect", config_input.key_select);
+
+    write_int("Input", "KeyLeft_Alt", config_input.key_alt_left);
+    write_int("Input", "KeyRight_Alt", config_input.key_alt_right);
+    write_int("Input", "KeyUp_Alt", config_input.key_alt_up);
+    write_int("Input", "KeyDown_Alt", config_input.key_alt_down);
+    write_int("Input", "KeyA_Alt", config_input.key_alt_a);
+    write_int("Input", "KeyB_Alt", config_input.key_alt_b);
+    write_int("Input", "KeyStart_Alt", config_input.key_alt_start);
+    write_int("Input", "KeySelect_Alt", config_input.key_alt_select);
+
+    write_int("Input", "KeyLeft_Alt_2", config_input.key_alt2_left);
+    write_int("Input", "KeyRight_Alt_2", config_input.key_alt2_right);
+    write_int("Input", "KeyUp_Alt_2", config_input.key_alt2_up);
+    write_int("Input", "KeyDown_Alt_2", config_input.key_alt2_down);
+    write_int("Input", "KeyA_Alt_2", config_input.key_alt2_a);
+    write_int("Input", "KeyB_Alt_2", config_input.key_alt2_b);
+    write_int("Input", "KeyStart_Alt_2", config_input.key_alt2_start);
+    write_int("Input", "KeySelect_Alt_2", config_input.key_alt2_select);
 
     write_bool("Input", "Gamepad", config_input.gamepad);
     write_int("Input", "GamepadDirectional", config_input.gamepad_directional);
@@ -351,7 +335,6 @@ void config_write(void)
     }
 
     // Write hotkeys
-    write_hotkey("Hotkeys", "OpenROM", config_hotkeys[config_HotkeyIndex_OpenROM]);
     write_hotkey("Hotkeys", "Quit", config_hotkeys[config_HotkeyIndex_Quit]);
     write_hotkey("Hotkeys", "Reset", config_hotkeys[config_HotkeyIndex_Reset]);
     write_hotkey("Hotkeys", "Pause", config_hotkeys[config_HotkeyIndex_Pause]);
@@ -361,12 +344,6 @@ void config_write(void)
     write_hotkey("Hotkeys", "Screenshot", config_hotkeys[config_HotkeyIndex_Screenshot]);
     write_hotkey("Hotkeys", "Fullscreen", config_hotkeys[config_HotkeyIndex_Fullscreen]);
     write_hotkey("Hotkeys", "ShowMainMenu", config_hotkeys[config_HotkeyIndex_ShowMainMenu]);
-    write_hotkey("Hotkeys", "DebugStep", config_hotkeys[config_HotkeyIndex_DebugStep]);
-    write_hotkey("Hotkeys", "DebugContinue", config_hotkeys[config_HotkeyIndex_DebugContinue]);
-    write_hotkey("Hotkeys", "DebugNextFrame", config_hotkeys[config_HotkeyIndex_DebugNextFrame]);
-    write_hotkey("Hotkeys", "DebugRunToCursor", config_hotkeys[config_HotkeyIndex_DebugRunToCursor]);
-    write_hotkey("Hotkeys", "DebugBreakpoint", config_hotkeys[config_HotkeyIndex_DebugBreakpoint]);
-    write_hotkey("Hotkeys", "DebugGoBack", config_hotkeys[config_HotkeyIndex_DebugGoBack]);
     write_hotkey("Hotkeys", "SelectSlot1", config_hotkeys[config_HotkeyIndex_SelectSlot1]);
     write_hotkey("Hotkeys", "SelectSlot2", config_hotkeys[config_HotkeyIndex_SelectSlot2]);
     write_hotkey("Hotkeys", "SelectSlot3", config_hotkeys[config_HotkeyIndex_SelectSlot3]);

@@ -54,7 +54,6 @@ GearboyCore::GearboyCore()
     InitPointer(m_pMBC5MemoryRule);
     InitPointer(m_pRamChangedCallback);
     m_bCGB = false;
-    m_bGBA = false;
     m_bPaused = false;
     m_bForceDMG = false;
     m_iRTCUpdateCount = 0;
@@ -104,7 +103,7 @@ void GearboyCore::Init(GB_Color_Format pixelFormat)
     InitDMGPalette();
 }
 
-bool GearboyCore::RunToVBlank(u16* pFrameBuffer, s16* pSampleBuffer, int* pSampleCount, bool bDMGbuffer, bool step, bool stopOnBreakpoints)
+bool GearboyCore::RunToVBlank(u16* pFrameBuffer, s16* pSampleBuffer, int* pSampleCount, bool bDMGbuffer)
 {
     bool breakpoint = false;
 
@@ -128,15 +127,6 @@ bool GearboyCore::RunToVBlank(u16* pFrameBuffer, s16* pSampleBuffer, int* pSampl
             m_pInput->Tick(clockCycles);
 
             totalClocks += clockCycles;
-
-#ifndef GEARBOY_DISABLE_DISASSEMBLER
-            if ((step || (stopOnBreakpoints && m_pProcessor->BreakpointHit())) && !m_pProcessor->Halted() && !m_pProcessor->DuringOpCode())
-            {
-                vblank = true;
-                if (m_pProcessor->BreakpointHit())
-                    breakpoint = true;
-            }
-#endif
 
             if (totalClocks > 702240)
                 vblank = true;
@@ -164,12 +154,12 @@ bool GearboyCore::RunToVBlank(u16* pFrameBuffer, s16* pSampleBuffer, int* pSampl
     return breakpoint;
 }
 
-bool GearboyCore::LoadROM(const char* szFilePath, bool forceDMG, Cartridge::CartridgeTypes forceType, bool forceGBA)
+bool GearboyCore::LoadROM(const char* szFilePath, bool forceDMG, Cartridge::CartridgeTypes forceType)
 {
     if (m_pCartridge->LoadFromFile(szFilePath))
     {
         m_bForceDMG = forceDMG;
-        Reset(m_bForceDMG ? false : m_pCartridge->IsCGB(), forceGBA);
+        Reset(m_bForceDMG ? false : m_pCartridge->IsCGB());
         m_pMemory->ResetDisassembledMemory();
         m_pMemory->LoadBank0and1FromROM(m_pCartridge->GetTheROM());
         bool romTypeOK = AddMemoryRules(forceType);
@@ -188,12 +178,12 @@ bool GearboyCore::LoadROM(const char* szFilePath, bool forceDMG, Cartridge::Cart
         return false;
 }
 
-bool GearboyCore::LoadROMFromBuffer(const u8* buffer, int size, bool forceDMG, Cartridge::CartridgeTypes forceType, bool forceGBA)
+bool GearboyCore::LoadROMFromBuffer(const u8* buffer, int size, bool forceDMG, Cartridge::CartridgeTypes forceType)
 {
     if (m_pCartridge->LoadFromBuffer(buffer, size))
     {
         m_bForceDMG = forceDMG;
-        Reset(m_bForceDMG ? false : m_pCartridge->IsCGB(), forceGBA);
+        Reset(m_bForceDMG ? false : m_pCartridge->IsCGB());
         m_pMemory->ResetDisassembledMemory();
         m_pMemory->LoadBank0and1FromROM(m_pCartridge->GetTheROM());
         bool romTypeOK = AddMemoryRules(forceType);
@@ -309,12 +299,12 @@ bool GearboyCore::IsPaused()
     return m_bPaused;
 }
 
-void GearboyCore::ResetROM(bool forceDMG, Cartridge::CartridgeTypes forceType, bool forceGBA)
+void GearboyCore::ResetROM(bool forceDMG, Cartridge::CartridgeTypes forceType)
 {
     if (m_pCartridge->IsLoadedROM())
     {
         m_bForceDMG = forceDMG;
-        Reset(m_bForceDMG ? false : m_pCartridge->IsCGB(), forceGBA);
+        Reset(m_bForceDMG ? false : m_pCartridge->IsCGB());
         m_pMemory->LoadBank0and1FromROM(m_pCartridge->GetTheROM());
         AddMemoryRules(forceType);
 #ifndef GEARBOY_DISABLE_DISASSEMBLER
@@ -323,7 +313,7 @@ void GearboyCore::ResetROM(bool forceDMG, Cartridge::CartridgeTypes forceType, b
     }
 }
 
-void GearboyCore::ResetROMPreservingRAM(bool forceDMG, Cartridge::CartridgeTypes forceType, bool forceGBA)
+void GearboyCore::ResetROMPreservingRAM(bool forceDMG, Cartridge::CartridgeTypes forceType)
 {
     if (m_pCartridge->IsLoadedROM())
     {
@@ -332,15 +322,11 @@ void GearboyCore::ResetROMPreservingRAM(bool forceDMG, Cartridge::CartridgeTypes
         using namespace std;
         stringstream stream;
 
-        m_pMemory->GetCurrentRule()->SaveRam(stream);
-
-        ResetROM(forceDMG, forceType, forceGBA);
+        ResetROM(forceDMG, forceType);
 
         stream.seekg(0, stream.end);
         s32 size = (s32)stream.tellg();
         stream.seekg(0, stream.beg);
-
-        m_pMemory->GetCurrentRule()->LoadRam(stream, size);
     }
 }
 
@@ -397,137 +383,8 @@ void GearboyCore::SetDMGPalette(GB_Color& color1, GB_Color& color2, GB_Color& co
     }
 }
 
-void GearboyCore::SaveRam()
-{
-    SaveRam(NULL);
-}
-
-void GearboyCore::SaveRam(const char* szPath, bool fullPath)
-{
-    if (m_pCartridge->IsLoadedROM() && m_pCartridge->HasBattery() && IsValidPointer(m_pMemory->GetCurrentRule()))
-    {
-        Debug("Saving RAM...");
-
-        using namespace std;
-
-        string path = "";
-
-        if (IsValidPointer(szPath))
-        {
-            path += szPath;
-
-            if (!fullPath)
-            {
-                path += "/";
-                path += m_pCartridge->GetFileName();
-            }
-        }
-        else
-        {
-            path = m_pCartridge->GetFilePath();
-        }
-
-        string::size_type i = path.rfind('.', path.length());
-
-        if (i != string::npos) {
-            path.replace(i + 1, 3, "sav");
-        }
-
-        Log("Save file: %s", path.c_str());
-
-        ofstream file;
-        open_ofstream_utf8(file, path.c_str(), ios::out | ios::binary);
-
-        m_pMemory->GetCurrentRule()->SaveRam(file);
-
-        Debug("RAM saved");
-    }
-}
-
-void GearboyCore::LoadRam()
-{
-    LoadRam(NULL);
-}
-
-void GearboyCore::LoadRam(const char* szPath, bool fullPath)
-{
-    if (m_pCartridge->IsLoadedROM() && m_pCartridge->HasBattery() && IsValidPointer(m_pMemory->GetCurrentRule()))
-    {
-        Debug("Loading RAM...");
-
-        using namespace std;
-
-        string sav_path = "";
-
-        if (IsValidPointer(szPath))
-        {
-            sav_path += szPath;
-
-            if (!fullPath)
-            {
-                sav_path += "/";
-                sav_path += m_pCartridge->GetFileName();
-            }
-        }
-        else
-        {
-            sav_path = m_pCartridge->GetFilePath();
-        }
-
-        string rom_path = sav_path;
-
-        string::size_type i = sav_path.rfind('.', sav_path.length());
-
-        if (i != string::npos) {
-            sav_path.replace(i + 1, 3, "sav");
-        }
-
-        Log("Opening save file: %s", sav_path.c_str());
-
-        ifstream file;
-
-        open_ifstream_utf8(file, sav_path.c_str(), ios::in | ios::binary);
-
-        // check for old .gearboy saves
-        if (file.fail())
-        {
-            Log("Save file doesn't exist");
-            string old_sav_file = rom_path + ".gearboy";
-
-            Log("Opening old save file: %s", old_sav_file.c_str());
-            open_ifstream_utf8(file, old_sav_file.c_str(), ios::in | ios::binary);
-        }
-
-        if (!file.fail())
-        {
-            file.seekg(0, file.end);
-            s32 fileSize = (s32)file.tellg();
-            file.seekg(0, file.beg);
-
-            if (m_pMemory->GetCurrentRule()->LoadRam(file, fileSize))
-            {
-                Debug("RAM loaded");
-            }
-            else
-            {
-                Log("Save file size incorrect: %d", fileSize);
-            }
-        }
-        else
-        {
-            Log("Save file doesn't exist");
-        }
-    }
-}
-
 void GearboyCore::SaveState(int index)
 {
-    if (m_pMemory->IsBootromRegistryEnabled())
-    {
-        Debug("Save states disabled when running bootrom");
-        return;
-    }
-
     Log("Creating save state %d...", index);
 
     SaveState(NULL, index);
@@ -537,12 +394,6 @@ void GearboyCore::SaveState(int index)
 
 void GearboyCore::SaveState(const char* szPath, int index)
 {
-    if (m_pMemory->IsBootromRegistryEnabled())
-    {
-        Debug("Save states disabled when running bootrom");
-        return;
-    }
-
     Debug("Saving state...");
 
     using namespace std;
@@ -593,12 +444,6 @@ void GearboyCore::SaveState(const char* szPath, int index)
 
 bool GearboyCore::SaveState(u8* buffer, size_t& size)
 {
-    if (m_pMemory->IsBootromRegistryEnabled())
-    {
-        Debug("Save states disabled when running bootrom");
-        return false;
-    }
-
     bool ret = false;
 
     if (m_pCartridge->IsLoadedROM() && IsValidPointer(m_pMemory->GetCurrentRule()))
@@ -627,12 +472,6 @@ bool GearboyCore::SaveState(u8* buffer, size_t& size)
 
 bool GearboyCore::SaveState(std::ostream& stream, size_t& size)
 {
-    if (m_pMemory->IsBootromRegistryEnabled())
-    {
-        Debug("Save states disabled when running bootrom");
-        return false;
-    }
-
     if (m_pCartridge->IsLoadedROM() && IsValidPointer(m_pMemory->GetCurrentRule()))
     {
         Debug("Gathering save state data...");
@@ -668,12 +507,6 @@ bool GearboyCore::SaveState(std::ostream& stream, size_t& size)
 
 void GearboyCore::LoadState(int index)
 {
-    if (m_pMemory->IsBootromRegistryEnabled())
-    {
-        Debug("Save states disabled when running bootrom");
-        return;
-    }
-
     Log("Loading save state %d...", index);
 
     LoadState(NULL, index);
@@ -683,12 +516,6 @@ void GearboyCore::LoadState(int index)
 
 void GearboyCore::LoadState(const char* szPath, int index)
 {
-    if (m_pMemory->IsBootromRegistryEnabled())
-    {
-        Debug("Save states disabled when running bootrom");
-        return;
-    }
-
     Debug("Loading save state...");
 
     using namespace std;
@@ -744,12 +571,6 @@ void GearboyCore::LoadState(const char* szPath, int index)
 
 bool GearboyCore::LoadState(const u8* buffer, size_t size)
 {
-    if (m_pMemory->IsBootromRegistryEnabled())
-    {
-        Debug("Save states disabled when running bootrom");
-        return false;
-    }
-
     if (m_pCartridge->IsLoadedROM() && IsValidPointer(m_pMemory->GetCurrentRule()) && (size > 0) && IsValidPointer(buffer))
     {
         Debug("Gathering load state data [%d bytes]...", size);
@@ -770,12 +591,6 @@ bool GearboyCore::LoadState(const u8* buffer, size_t size)
 
 bool GearboyCore::LoadState(std::istream& stream)
 {
-    if (m_pMemory->IsBootromRegistryEnabled())
-    {
-        Debug("Save states disabled when running bootrom");
-        return false;
-    }
-
     if (m_pCartridge->IsLoadedROM() && IsValidPointer(m_pMemory->GetCurrentRule()))
     {
         using namespace std;
@@ -822,29 +637,6 @@ bool GearboyCore::LoadState(std::istream& stream)
     return false;
 }
 
-void GearboyCore::SetCheat(const char* szCheat)
-{
-    std::string s = szCheat;
-    if ((s.length() == 7) || (s.length() == 11))
-    {
-        m_pCartridge->SetGameGenieCheat(szCheat);
-        if (m_pCartridge->IsLoadedROM())
-            m_pMemory->LoadBank0and1FromROM(m_pCartridge->GetTheROM());
-    }
-    else
-    {
-        m_pProcessor->SetGameSharkCheat(szCheat);
-    }
-}
-
-void GearboyCore::ClearCheats()
-{
-    m_pCartridge->ClearGameGenieCheats();
-    m_pProcessor->ClearGameSharkCheats();
-    if (m_pCartridge->IsLoadedROM())
-        m_pMemory->LoadBank0and1FromROM(m_pCartridge->GetTheROM());
-}
-
 void GearboyCore::SetRamModificationCallback(RamChangedCallback callback)
 {
     m_pRamChangedCallback = callback;
@@ -853,11 +645,6 @@ void GearboyCore::SetRamModificationCallback(RamChangedCallback callback)
 bool GearboyCore::IsCGB()
 {
     return m_bCGB;
-}
-
-bool GearboyCore::IsGBA()
-{
-    return m_bGBA;
 }
 
 void GearboyCore::EnableColorCorrection(bool enabled)
@@ -1043,16 +830,11 @@ bool GearboyCore::AddMemoryRules(Cartridge::CartridgeTypes forceType)
     return !notSupported;
 }
 
-void GearboyCore::Reset(bool bCGB, bool bGBA)
+void GearboyCore::Reset(bool bCGB)
 {
     m_bCGB = bCGB;
-    m_bGBA = bGBA;
 
-    if (m_bGBA && m_bCGB)
-    {
-        Log("Reset: Switching to Game Boy Advance");
-    }
-    else if (m_bCGB)
+    if (m_bCGB)
     {
         Log("Reset: Switching to Game Boy Color");
     }
@@ -1062,7 +844,7 @@ void GearboyCore::Reset(bool bCGB, bool bGBA)
     }
 
     m_pMemory->Reset(m_bCGB);
-    m_pProcessor->Reset(m_bCGB, m_bGBA);
+    m_pProcessor->Reset(m_bCGB);
     m_pVideo->Reset(m_bCGB);
     m_pAudio->Reset(m_bCGB);
     m_pInput->Reset();

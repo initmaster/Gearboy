@@ -22,11 +22,11 @@
 #include "imgui/imgui_impl_sdl2.h"
 #include "emu.h"
 #include "gui.h"
-#include "gui_debug.h"
 #include "config.h"
 #include "renderer.h"
 #include "utils.h"
 #include "../../src/common.h"
+#include "resource.h"
 
 #define APPLICATION_IMPORT
 #include "application.h"
@@ -76,7 +76,43 @@ extern "C" void* macos_install_fullscreen_observer(void* nswindow, void(*enter_c
 extern "C" void macos_set_native_fullscreen(void* nswindow, bool enter);
 #endif
 
-int application_init(const char* rom_file, const char* symbol_file, bool force_fullscreen, bool force_windowed)
+namespace ApplicationSettings
+{
+    std::string title;
+    std::string version;
+    std::string author;
+    std::string website;
+    bool Load()
+    {
+        HMODULE hModule = GetModuleHandle(nullptr);
+
+        HRSRC hRes = FindResource(hModule, MAKEINTRESOURCE(IDR_SETTINGS_JSON), RT_RCDATA);
+        if (!hRes) return false;
+
+        HGLOBAL hData = LoadResource(hModule, hRes);
+        if (!hData) return false;
+
+        const char* jsonData = static_cast<const char*>(LockResource(hData));
+        DWORD size = SizeofResource(hModule, hRes);
+
+        try
+        {
+            nlohmann::json data = nlohmann::json::parse(jsonData, jsonData + size);
+            title = data.value("Title", GEARBOY_TITLE);
+            version = data.value("Version", "");
+            author = data.value("Author", "");
+            website = data.value("Website", "");
+        }
+        catch (...)
+        {
+            return false;
+        }
+
+        return true;
+    }
+}
+
+int application_init(bool force_fullscreen, bool force_windowed)
 {
     Log("\n%s", GEARBOY_TITLE_ASCII);
     Log("%s %s Desktop App", GEARBOY_TITLE, GEARBOY_VERSION);
@@ -130,18 +166,7 @@ int application_init(const char* rom_file, const char* symbol_file, bool force_f
     if (config_emulator.fullscreen)
         application_trigger_fullscreen(true);
 
-    if (IsValidPointer(rom_file) && (strlen(rom_file) > 0))
-    {
-        Log ("Rom file argument: %s", rom_file);
-        gui_load_rom(rom_file);
-    }
-
-    if (IsValidPointer(symbol_file) && (strlen(symbol_file) > 0))
-    {
-        Log ("Symbol file argument: %s", symbol_file);
-        gui_debug_reset_symbols();
-        gui_debug_load_symbols_file(symbol_file);
-    }
+    gui_load_internal_rom();
 
     strcpy(emu_savefiles_path, config_emulator.savefiles_path.c_str());
     strcpy(emu_savestates_path, config_emulator.savestates_path.c_str());
@@ -221,7 +246,7 @@ void application_trigger_fit_to_content(int width, int height)
 void application_update_title_with_rom(const char* rom)
 {
     char final_title[256];
-    snprintf(final_title, 256, "%s - %s", WINDOW_TITLE, rom);
+    snprintf(final_title, 256, "%s - %s", ApplicationSettings::title.c_str(), WINDOW_TITLE);
     SDL_SetWindowTitle(application_sdl_window, final_title);
     SDL_ERROR("SDL_SetWindowTitle");
 }
@@ -446,9 +471,9 @@ static void sdl_load_gamepad_mappings(void)
 
 static void handle_mouse_cursor(void)
 {
-    if (!config_debug.debug && gui_main_window_hovered)
+    if (gui_main_window_hovered)
         ImGui::SetMouseCursor(ImGuiMouseCursor_None);
-    else if (!config_debug.debug && config_emulator.fullscreen && !config_emulator.always_show_menu)
+    else if (config_emulator.fullscreen && !config_emulator.always_show_menu)
     {
         Uint32 now = SDL_GetTicks();
 
@@ -464,8 +489,6 @@ static void handle_mouse_cursor(void)
 static void handle_menu(void)
 {
     if (config_emulator.always_show_menu)
-        application_show_menu = true;
-    else if (config_debug.debug)
         application_show_menu = true;
     else if (config_emulator.fullscreen)
         application_show_menu = config_emulator.always_show_menu;
@@ -530,7 +553,7 @@ static void sdl_events_emu(const SDL_Event* event)
         case (SDL_DROPFILE):
         {
             char* dropped_filedir = event->drop.file;
-            gui_load_rom(dropped_filedir);
+            gui_load_internal_rom();
             SDL_free(dropped_filedir);
             SDL_SetWindowInputFocus(application_sdl_window);
         }
@@ -734,21 +757,21 @@ static void sdl_events_emu(const SDL_Event* event)
 
             int key = event->key.keysym.scancode;
 
-            if (key == config_input.key_left)
+            if (key == config_input.key_left || key == config_input.key_alt_left || key == config_input.key_alt2_left)
                 emu_key_pressed(Left_Key);
-            else if (key == config_input.key_right)
+            else if (key == config_input.key_right || key == config_input.key_alt_right || key == config_input.key_alt2_right)
                 emu_key_pressed(Right_Key);
-            else if (key == config_input.key_up)
+            else if (key == config_input.key_up || key == config_input.key_alt_up || key == config_input.key_alt2_up)
                 emu_key_pressed(Up_Key);
-            else if (key == config_input.key_down)
+            else if (key == config_input.key_down || key == config_input.key_alt_down || key == config_input.key_alt2_down)
                 emu_key_pressed(Down_Key);
-            else if (key == config_input.key_b)
+            else if (key == config_input.key_b || key == config_input.key_alt_b || key == config_input.key_alt2_b)
                 emu_key_pressed(B_Key);
-            else if (key == config_input.key_a)
+            else if (key == config_input.key_a || key == config_input.key_alt_a || key == config_input.key_alt2_a)
                 emu_key_pressed(A_Key);
-            else if (key == config_input.key_select)
+            else if (key == config_input.key_select || key == config_input.key_alt_select || key == config_input.key_alt2_select)
                 emu_key_pressed(Select_Key);
-            else if (key == config_input.key_start)
+            else if (key == config_input.key_start || key == config_input.key_alt_start || key == config_input.key_alt2_start)
                 emu_key_pressed(Start_Key);
         }
         break;
@@ -757,21 +780,21 @@ static void sdl_events_emu(const SDL_Event* event)
         {
             int key = event->key.keysym.scancode;
 
-            if (key == config_input.key_left)
+            if (key == config_input.key_left || key == config_input.key_alt_left || key == config_input.key_alt2_left)
                 emu_key_released(Left_Key);
-            else if (key == config_input.key_right)
+            else if (key == config_input.key_right || key == config_input.key_alt_right || key == config_input.key_alt2_right)
                 emu_key_released(Right_Key);
-            else if (key == config_input.key_up)
+            else if (key == config_input.key_up || key == config_input.key_alt_up || key == config_input.key_alt2_up)
                 emu_key_released(Up_Key);
-            else if (key == config_input.key_down)
+            else if (key == config_input.key_down || key == config_input.key_alt_down || key == config_input.key_alt2_down)
                 emu_key_released(Down_Key);
-            else if (key == config_input.key_b)
+            else if (key == config_input.key_b || key == config_input.key_alt_b || key == config_input.key_alt2_b)
                 emu_key_released(B_Key);
-            else if (key == config_input.key_a)
+            else if (key == config_input.key_a || key == config_input.key_alt_a || key == config_input.key_alt2_a)
                 emu_key_released(A_Key);
-            else if (key == config_input.key_select)
+            else if (key == config_input.key_select || key == config_input.key_alt_select || key == config_input.key_alt2_select)
                 emu_key_released(Select_Key);
-            else if (key == config_input.key_start)
+            else if (key == config_input.key_start || key == config_input.key_alt_start || key == config_input.key_alt2_start)
                 emu_key_released(Start_Key);
         }
         break;
@@ -820,18 +843,6 @@ static void sdl_shortcuts_gui(const SDL_Event* event)
     // Fixed hotkeys for debug copy/paste operations
     int key = event->key.keysym.scancode;
     SDL_Keymod mods = (SDL_Keymod)event->key.keysym.mod;
-
-    if (event->key.repeat == 0 && key == SDL_SCANCODE_C && (mods & KMOD_CTRL))
-    {
-        gui_shortcut(gui_ShortcutDebugCopy);
-        return;
-    }
-
-    if (event->key.repeat == 0 && key == SDL_SCANCODE_V && (mods & KMOD_CTRL))
-    {
-        gui_shortcut(gui_ShortcutDebugPaste);
-        return;
-    }
 
     // ESC to exit fullscreen
     if (event->key.repeat == 0 && key == SDL_SCANCODE_ESCAPE)

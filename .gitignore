@@ -82,3 +82,5 @@ platforms/libretro/libs/
 
 #JetBrains
 .idea
+/platforms/windows/dependencies/SDL2-2.32.x/VisualC/SDL/x64
+/platforms/windows/dependencies/SDL2-2.32.x/VisualC/SDLmain/x64

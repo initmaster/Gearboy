@@ -44,7 +44,6 @@ static const int FRAME_BUFFER_SCALE = 4;
 
 static void init_ogl_gui(void);
 static void init_ogl_emu(void);
-static void init_ogl_debug(void);
 static void init_matrix_textures(void);
 static void render_gui(void);
 static void render_emu_normal(void);
@@ -52,7 +51,6 @@ static void render_emu_mix(void);
 static void render_emu_bilinear(void);
 static void render_quad(int viewportWidth, int viewportHeight);
 static void update_system_texture(void);
-static void update_debug_textures(void);
 static void render_matrix(void);
 
 bool renderer_init(void)
@@ -74,7 +72,6 @@ bool renderer_init(void)
 
     init_ogl_gui();
     init_ogl_emu();
-    init_ogl_debug();
 
     first_frame = true;
     return true;
@@ -86,9 +83,6 @@ void renderer_destroy(void)
     glDeleteTextures(1, &renderer_emu_texture);
     glDeleteTextures(1, &gameboy_texture);
     glDeleteTextures(1, &matrix_texture);
-    glDeleteTextures(1, &renderer_emu_debug_vram_background);
-    glDeleteTextures(2, renderer_emu_debug_vram_tiles);
-    glDeleteTextures(40, renderer_emu_debug_vram_oam);
     ImGui_ImplOpenGL2_Shutdown();
 }
 
@@ -99,11 +93,6 @@ void renderer_begin_render(void)
 
 void renderer_render(void)
 {
-    if (config_debug.debug)
-    {
-        update_debug_textures();
-    }
-
     if (config_video.mix_frames)
         render_emu_mix();
     else
@@ -167,33 +156,6 @@ static void init_ogl_emu(void)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
     init_matrix_textures();
-}
-
-static void init_ogl_debug(void)
-{
-    glGenTextures(1, &renderer_emu_debug_vram_background);
-    glBindTexture(GL_TEXTURE_2D, renderer_emu_debug_vram_background);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 256, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, (GLvoid*)emu_debug_background_buffer);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-    for (int b = 0; b < 2; b++)
-    {
-        glGenTextures(1, &renderer_emu_debug_vram_tiles[b]);
-        glBindTexture(GL_TEXTURE_2D, renderer_emu_debug_vram_tiles[b]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 16 * 8, 24 * 8, 0, GL_RGB, GL_UNSIGNED_BYTE, (GLvoid*)emu_debug_tile_buffers[b]);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    }
-
-    for (int s = 0; s < 40; s++)
-    {
-        glGenTextures(1, &renderer_emu_debug_vram_oam[s]);
-        glBindTexture(GL_TEXTURE_2D, renderer_emu_debug_vram_oam[s]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 8, 16, 0, GL_RGB, GL_UNSIGNED_BYTE, (GLvoid*)emu_debug_oam_buffers[s]);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    }
 }
 
 static void init_matrix_textures(void)
@@ -276,27 +238,6 @@ static void update_system_texture(void)
     {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    }
-}
-
-static void update_debug_textures(void)
-{
-    glBindTexture(GL_TEXTURE_2D, renderer_emu_debug_vram_background);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 256, 256,
-            GL_RGB, GL_UNSIGNED_BYTE, (GLvoid*) emu_debug_background_buffer);
-
-    for (int b = 0; b < 2; b++)
-    {
-        glBindTexture(GL_TEXTURE_2D, renderer_emu_debug_vram_tiles[b]);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 16 * 8, 24 * 8,
-                GL_RGB, GL_UNSIGNED_BYTE, (GLvoid*) emu_debug_tile_buffers[b]);
-    }
-
-    for (int s = 0; s < 40; s++)
-    {
-        glBindTexture(GL_TEXTURE_2D, renderer_emu_debug_vram_oam[s]);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 8, 16,
-                GL_RGB, GL_UNSIGNED_BYTE, (GLvoid*) emu_debug_oam_buffers[s]);
     }
 }
 

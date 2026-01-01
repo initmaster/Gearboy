@@ -17,7 +17,7 @@
  *
  */
 
-#ifndef GUI_DEBUG_MEMEDITOR_H
+/*#ifndef GUI_DEBUG_MEMEDITOR_H
 #define	GUI_DEBUG_MEMEDITOR_H
 
 #include <stdint.h>
@@ -143,4 +143,4 @@ private:
     bool m_search_auto;
 };
 
-#endif /* GUI_DEBUG_MEMEDITOR_H */
+#endif*/ /* GUI_DEBUG_MEMEDITOR_H */

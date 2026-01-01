@@ -3,6 +3,8 @@
 // Used by Gearboy.rc
 //
 #define IDI_ICON1                       101
+#define ROM_GB                          4242
+#define IDR_SETTINGS_JSON               8484
 
 // Next default values for new objects
 // 

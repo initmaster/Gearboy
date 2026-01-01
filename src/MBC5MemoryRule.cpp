@@ -145,47 +145,6 @@ void MBC5MemoryRule::PerformWrite(u16 address, u8 value)
     }
 }
 
-void MBC5MemoryRule::SaveRam(std::ostream & file)
-{
-    Debug("MBC5MemoryRule save RAM...");
-    Debug("MBC5MemoryRule saving %d banks...", m_pCartridge->GetRAMBankCount());
-
-    s32 ramSize = m_pCartridge->GetRAMBankCount() * 0x2000;
-
-    for (s32 i = 0; i < ramSize; i++)
-    {
-        u8 ram_byte = m_pRAMBanks[i];
-        file.write(reinterpret_cast<const char*> (&ram_byte), 1);
-    }
-
-    Debug("MBC5MemoryRule save RAM done");
-}
-
-bool MBC5MemoryRule::LoadRam(std::istream & file, s32 fileSize)
-{
-    Debug("MBC5MemoryRule load RAM...");
-    Debug("MBC5MemoryRule loading %d banks...", m_pCartridge->GetRAMBankCount());
-
-    s32 ramSize = m_pCartridge->GetRAMBankCount() * 0x2000;
-
-    if ((fileSize > 0) && (fileSize != ramSize))
-    {
-        Log("MBC5MemoryRule incorrect size. Expected: %d Found: %d", ramSize, fileSize);
-        return false;
-    }
-
-    for (s32 i = 0; i < ramSize; i++)
-    {
-        u8 ram_byte = 0;
-        file.read(reinterpret_cast<char*> (&ram_byte), 1);
-        m_pRAMBanks[i] = ram_byte;
-    }
-
-    Debug("MBC5MemoryRule load RAM done");
-
-    return true;
-}
-
 size_t MBC5MemoryRule::GetRamSize()
 {
     return m_pCartridge->GetRAMBankCount() * 0x2000;

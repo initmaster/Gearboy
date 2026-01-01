@@ -29,17 +29,8 @@
 #endif
 
 EXTERN GB_Color* emu_frame_buffer;
-EXTERN GB_Color* emu_debug_background_buffer;
-EXTERN GB_Color* emu_debug_tile_buffers[2];
-EXTERN GB_Color* emu_debug_oam_buffers[40];
 
 EXTERN bool emu_audio_sync;
-EXTERN bool emu_debug_disable_breakpoints_cpu;
-EXTERN bool emu_debug_disable_breakpoints_mem;
-EXTERN int emu_debug_background_tile_address;
-EXTERN int emu_debug_background_map_address;
-EXTERN int emu_debug_tile_dmg_palette;
-EXTERN int emu_debug_tile_color_palette;
 EXTERN bool emu_savefiles_dir_option;
 EXTERN bool emu_savestates_dir_option;
 EXTERN char emu_savefiles_path[4096];
@@ -48,14 +39,15 @@ EXTERN char emu_savestates_path[4096];
 EXTERN bool emu_init(void);
 EXTERN void emu_destroy(void);
 EXTERN void emu_update(void);
-EXTERN void emu_load_rom(const char* file_path, bool force_dmg, Cartridge::CartridgeTypes mbc, bool force_gba);
+EXTERN void emu_load_rom(const char* file_path, bool force_dmg, Cartridge::CartridgeTypes mbc);
+EXTERN void emu_load_internal_rom(bool force_dmg, Cartridge::CartridgeTypes mbc);
 EXTERN void emu_key_pressed(Gameboy_Keys key);
 EXTERN void emu_key_released(Gameboy_Keys key);
 EXTERN void emu_pause(void);
 EXTERN void emu_resume(void);
 EXTERN bool emu_is_paused(void);
 EXTERN bool emu_is_empty(void);
-EXTERN void emu_reset(bool force_dmg, Cartridge::CartridgeTypes mbc, bool force_gba);
+EXTERN void emu_reset(bool force_dmg, Cartridge::CartridgeTypes mbc);
 EXTERN void emu_memory_dump(void);
 EXTERN void emu_dissasemble_rom(void);
 EXTERN void emu_audio_volume(float volume);
@@ -65,28 +57,14 @@ EXTERN bool emu_is_audio_open(void);
 EXTERN void emu_dmg_palette(GB_Color& color1, GB_Color& color2, GB_Color& color3, GB_Color& color4);
 EXTERN void emu_dmg_predefined_palette(int palette);
 EXTERN bool emu_is_cgb(void);
-EXTERN void emu_save_ram(const char* file_path);
-EXTERN void emu_load_ram(const char* file_path, bool force_dmg, Cartridge::CartridgeTypes mbc, bool force_gba);
 EXTERN void emu_save_state_slot(int index);
 EXTERN void emu_load_state_slot(int index);
 EXTERN void emu_save_state_file(const char* file_path);
 EXTERN void emu_load_state_file(const char* file_path);
-EXTERN void emu_add_cheat(const char* cheat);
-EXTERN void emu_clear_cheats(void);
 EXTERN void emu_get_info(char* info);
 EXTERN GearboyCore* emu_get_core(void);
 EXTERN void emu_color_correction(bool correction);
-EXTERN void emu_debug_step(void);
-EXTERN void emu_debug_continue(void);
-EXTERN void emu_debug_next_frame(void);
-EXTERN void emu_load_bootrom_dmg(const char* file_path);
-EXTERN void emu_load_bootrom_gbc(const char* file_path);
-EXTERN void emu_enable_bootrom_dmg(bool enable);
-EXTERN void emu_enable_bootrom_gbc(bool enable);
 EXTERN void emu_save_screenshot(const char* file_path);
-EXTERN void emu_start_vgm_recording(const char* file_path);
-EXTERN void emu_stop_vgm_recording();
-EXTERN bool emu_is_vgm_recording();
 
 #undef EMU_IMPORT
 #undef EXTERN

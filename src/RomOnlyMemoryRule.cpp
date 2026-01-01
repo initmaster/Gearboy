@@ -79,41 +79,6 @@ void RomOnlyMemoryRule::PerformWrite(u16 address, u8 value)
         m_pMemory->Load(address, value);
 }
 
-void RomOnlyMemoryRule::SaveRam(std::ostream &file)
-{
-    Debug("RomOnlyMemoryRule save RAM...");
-
-    for (int i = 0xA000; i < 0xC000; i++)
-    {
-        u8 ram_byte = m_pMemory->Retrieve(i);
-        file.write(reinterpret_cast<const char*> (&ram_byte), 1);
-    }
-
-    Debug("RomOnlyMemoryRule save RAM done");
-}
-
-bool RomOnlyMemoryRule::LoadRam(std::istream &file, s32 fileSize)
-{
-    Debug("RomOnlyMemoryRule load RAM...");
-
-    if ((fileSize > 0) && (fileSize != 0x2000))
-    {
-        Log("RomOnlyMemoryRule incorrect size. Expected: %d Found: %d", 0x2000, fileSize);
-        return false;
-    }
-
-    for (int i = 0xA000; i < 0xC000; i++)
-    {
-        u8 ram_byte = 0;
-        file.read(reinterpret_cast<char*> (&ram_byte), 1);
-        m_pMemory->Load(i, ram_byte);
-    }
-
-    Debug("RomOnlyMemoryRule load RAM done");
-
-    return true;
-}
-
 size_t RomOnlyMemoryRule::GetRamSize()
 {
     return m_pCartridge->GetRAMBankCount() * 0x2000;

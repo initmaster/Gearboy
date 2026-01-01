@@ -87,9 +87,6 @@
     <ClCompile Include="..\..\src\Video.cpp">
       <Filter>source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\VgmRecorder.cpp">
-      <Filter>source</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\audio\Blip_Buffer.cpp">
       <Filter>source\audio</Filter>
     </ClCompile>
@@ -143,15 +140,6 @@
     </ClCompile>
     <ClCompile Include="..\desktop-shared\imgui\imgui_widgets.cpp">
       <Filter>desktop-shared\imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\desktop-shared\gui_debug.cpp">
-      <Filter>desktop-shared</Filter>
-    </ClCompile>
-    <ClCompile Include="..\desktop-shared\gui_debug_memory.cpp">
-      <Filter>desktop-shared</Filter>
-    </ClCompile>
-    <ClCompile Include="..\desktop-shared\gui_debug_memeditor.cpp">
-      <Filter>desktop-shared</Filter>
     </ClCompile>
     <ClCompile Include="..\desktop-shared\nfd\nfd_win.cpp">
       <Filter>desktop-shared\nfd</Filter>
@@ -236,9 +224,6 @@
     <ClInclude Include="..\..\src\Video.h">
       <Filter>source</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\VgmRecorder.h">
-      <Filter>source</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\src\audio\blargg_common.h">
       <Filter>source\audio</Filter>
     </ClInclude>
@@ -308,16 +293,7 @@
     <ClInclude Include="..\desktop-shared\mINI\ini.h">
       <Filter>desktop-shared\mini</Filter>
     </ClInclude>
-    <ClInclude Include="..\desktop-shared\gui_debug.h">
-      <Filter>desktop-shared</Filter>
-    </ClInclude>
-    <ClInclude Include="..\desktop-shared\gui_debug_memory.h">
-      <Filter>desktop-shared</Filter>
-    </ClInclude>
-    <ClInclude Include="..\desktop-shared\gui_debug_memeditor.h">
-      <Filter>desktop-shared</Filter>
-    </ClInclude>
-    <ClInclude Include="..\desktop-shared\gui_debug_constants.h">
+    <ClInclude Include="..\desktop-shared\gui_constants.h">
       <Filter>desktop-shared</Filter>
     </ClInclude>
     <ClInclude Include="..\audio-shared\sound_queue.h">
@@ -351,6 +327,9 @@
       <Filter>desktop-shared\imgui</Filter>
     </ClInclude>
     <ClInclude Include="resource.h" />
+    <ClInclude Include="..\desktop-shared\json.hpp">
+      <Filter>desktop-shared</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="Gearboy.manifest" />

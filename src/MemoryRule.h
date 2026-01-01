@@ -40,8 +40,6 @@ public:
     virtual u8 PerformRead(u16 address) = 0;
     virtual void PerformWrite(u16 address, u8 value) = 0;
     virtual void Reset(bool bCGB) = 0;
-    virtual void SaveRam(std::ostream &file);
-    virtual bool LoadRam(std::istream &file, s32 fileSize);
     virtual void SetRamChangedCallback(RamChangedCallback callback);
     virtual size_t GetRamSize();
     virtual size_t GetRTCSize();

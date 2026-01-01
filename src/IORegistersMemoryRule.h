@@ -416,11 +416,6 @@ inline void IORegistersMemoryRule::PerformWrite(u16 address, u8 value)
         }
         case 0xFF50:
         {
-            // BOOT
-            if ((value & 0x01) > 0)
-            {
-                m_pMemory->DisableBootromRegistry();
-            }
             break;
         }
         case 0xFF51:

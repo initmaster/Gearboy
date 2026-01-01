@@ -1,0 +1,3 @@
+[submodule "platforms/windows/dependencies/SDL"]
+	path = platforms/windows/dependencies/SDL
+	url = https://github.com/libsdl-org/SDL.git

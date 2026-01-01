@@ -26,15 +26,6 @@
     #define EXTERN extern
 #endif
 
-EXTERN void gui_debug_windows(void);
-EXTERN void gui_debug_reset(void);
-EXTERN void gui_debug_reset_symbols(void);
-EXTERN void gui_debug_load_symbols_file(const char* path);
-EXTERN void gui_debug_toggle_breakpoint(void);
-EXTERN void gui_debug_reset_breakpoints_cpu(void);
-EXTERN void gui_debug_reset_breakpoints_mem(void);
-EXTERN void gui_debug_runtocursor(void);
-EXTERN void gui_debug_go_back(void);
 
 #undef GUI_DEBUG_IMPORT
 #undef EXTERN

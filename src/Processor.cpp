@@ -45,9 +45,7 @@ Processor::Processor(Memory* pMemory)
     m_iInterruptDelayCycles = 0;
     m_iAccurateOPCodeState = 0;
     m_iReadCache = 0;
-    m_bBreakpointHit = false;
-    m_bRequestMemBreakpoint = false;
-
+    
     m_ProcessorState.AF = &AF;
     m_ProcessorState.BC = &BC;
     m_ProcessorState.DE = &DE;
@@ -64,10 +62,10 @@ Processor::~Processor()
 
 void Processor::Init()
 {
-    Reset(false, false);
+    Reset(false);
 }
 
-void Processor::Reset(bool bCGB, bool bGBA)
+void Processor::Reset(bool bCGB)
 {
     m_bCGB = bCGB;
     m_bIME = false;
@@ -84,51 +82,28 @@ void Processor::Reset(bool bCGB, bool bGBA)
     m_iSerialCycles = 0;
     m_iUnhaltCycles = 0;
 
-    if(m_pMemory->IsBootromEnabled())
+    PC.SetValue(0x100);
+    SP.SetValue(0xFFFE);
+
+    if (m_bCGB)
     {
-        PC.SetValue(0);
-        SP.SetValue(0);
-        AF.SetValue(0);
-        BC.SetValue(0);
-        DE.SetValue(0);
-        HL.SetValue(0);
+        AF.SetValue(0x1180);
+        BC.SetValue(0x0000);
+        DE.SetValue(0xFF56);
+        HL.SetValue(0x000D);
     }
     else
     {
-        m_pMemory->DisableBootromRegistry();
-        PC.SetValue(0x100);
-        SP.SetValue(0xFFFE);
-
-        if (m_bCGB)
-        {
-            if (bGBA)
-            {
-                AF.SetValue(0x1100);
-                BC.SetValue(0x0100);
-            }
-            else
-            {
-                AF.SetValue(0x1180);
-                BC.SetValue(0x0000);
-            }
-            DE.SetValue(0xFF56);
-            HL.SetValue(0x000D);
-        }
-        else
-        {
-            AF.SetValue(0x01B0);
-            BC.SetValue(0x0013);
-            DE.SetValue(0x00D8);
-            HL.SetValue(0x014D);
-        }
+        AF.SetValue(0x01B0);
+        BC.SetValue(0x0013);
+        DE.SetValue(0x00D8);
+        HL.SetValue(0x014D);
     }
 
     m_iInterruptDelayCycles = 0;
     m_iAccurateOPCodeState = 0;
     m_iReadCache = 0;
     m_GameSharkList.clear();
-    m_bBreakpointHit = false;
-    m_bRequestMemBreakpoint = false;
 }
 
 u8 Processor::RunFor(u8 ticks)
@@ -138,8 +113,6 @@ u8 Processor::RunFor(u8 ticks)
     while (executed < ticks)
     {
         m_iCurrentClockCycles = 0;
-        m_bBreakpointHit = false;
-        m_bRequestMemBreakpoint = false;
 
         if (m_iAccurateOPCodeState == 0 && m_bHalt)
         {
@@ -259,11 +232,6 @@ u8 Processor::RunFor(u8 ticks)
                     }
                 }
             }
-
-            #ifndef GEARBOY_DISABLE_DISASSEMBLER
-            if (Disassemble(PC.GetValue()) || m_bRequestMemBreakpoint)
-                m_bBreakpointHit = true;
-            #endif
         }
 
         if (!interrupt_served && (m_iInterruptDelayCycles > 0))
@@ -598,16 +566,6 @@ bool Processor::Disassemble(u16 address)
     return false;
 }
 
-bool Processor::BreakpointHit()
-{
-    return m_bBreakpointHit;
-}
-
-void Processor::RequestMemoryBreakpoint()
-{
-    m_bRequestMemBreakpoint = true;
-}
-
 void Processor::SaveState(std::ostream& stream)
 {
     using namespace std;
@@ -685,29 +643,6 @@ void Processor::LoadState(std::istream& stream)
     stream.read(reinterpret_cast<char*> (&m_iSpeedMultiplier), sizeof(m_iSpeedMultiplier));
     stream.read(reinterpret_cast<char*> (&m_iAccurateOPCodeState), sizeof(m_iAccurateOPCodeState));
     stream.read(reinterpret_cast<char*> (&m_iReadCache), sizeof(m_iReadCache));
-}
-
-void Processor::SetGameSharkCheat(const char* szCheat)
-{
-    std::string code(szCheat);
-    for (std::string::iterator p = code.begin(); code.end() != p; ++p)
-        *p = toupper(*p);
-
-    if (code.length() == 8)
-    {
-        GameSharkCode gsc;
-
-        gsc.type = AsHex(code[0]) << 4 | AsHex(code[1]);
-        gsc.value = (AsHex(code[2]) << 4 | AsHex(code[3])) & 0xFF;
-        gsc.address = (AsHex(code[4]) << 4 | AsHex(code[5]) | AsHex(code[6]) << 12 | AsHex(code[7]) << 8) & 0xFFFF;
-
-        m_GameSharkList.push_back(gsc);
-    }
-}
-
-void Processor::ClearGameSharkCheats()
-{
-    m_GameSharkList.clear();
 }
 
 Processor::ProcessorState* Processor::GetState()

@@ -44,27 +44,23 @@ public:
     GearboyCore();
     ~GearboyCore();
     void Init(GB_Color_Format pixelFormat = GB_PIXEL_RGB565);
-    bool RunToVBlank(u16* pFrameBuffer, s16* pSampleBuffer, int* pSampleCount, bool bDMGbuffer = false, bool step = false, bool stopOnBreakpoints = false);
-    bool LoadROM(const char* szFilePath, bool forceDMG, Cartridge::CartridgeTypes forceType = Cartridge::CartridgeNotSupported, bool forceGBA = false);
-    bool LoadROMFromBuffer(const u8* buffer, int size, bool forceDMG, Cartridge::CartridgeTypes forceType = Cartridge::CartridgeNotSupported, bool forceGBA = false);
+    bool RunToVBlank(u16* pFrameBuffer, s16* pSampleBuffer, int* pSampleCount, bool bDMGbuffer = false);
+    bool LoadROM(const char* szFilePath, bool forceDMG, Cartridge::CartridgeTypes forceType = Cartridge::CartridgeNotSupported);
+    bool LoadROMFromBuffer(const u8* buffer, int size, bool forceDMG, Cartridge::CartridgeTypes forceType = Cartridge::CartridgeNotSupported);
     void SaveDisassembledROM();
     void SaveMemoryDump();
     void KeyPressed(Gameboy_Keys key);
     void KeyReleased(Gameboy_Keys key);
     void Pause(bool paused);
     bool IsPaused();
-    void ResetROM(bool forceDMG, Cartridge::CartridgeTypes forceType = Cartridge::CartridgeNotSupported, bool forceGBA = false);
-    void ResetROMPreservingRAM(bool forceDMG, Cartridge::CartridgeTypes forceType = Cartridge::CartridgeNotSupported, bool forceGBA = false);
+    void ResetROM(bool forceDMG, Cartridge::CartridgeTypes forceType = Cartridge::CartridgeNotSupported);
+    void ResetROMPreservingRAM(bool forceDMG, Cartridge::CartridgeTypes forceType = Cartridge::CartridgeNotSupported);
     void ResetSound();
     void SetSoundSampleRate(int rate);
     void SetSoundVolume(float volume);
     void SetDMGPalette(GB_Color& color1, GB_Color& color2, GB_Color& color3, GB_Color& color4);
     u16* GetDMGInternalPalette();
     void EnableColorCorrection(bool enabled);
-    void SaveRam();
-    void SaveRam(const char* szPath, bool fullPath = false);
-    void LoadRam();
-    void LoadRam(const char* szPath, bool fullPath = false);
     void SaveState(int index);
     void SaveState(const char* szPath, int index);
     bool SaveState(u8* buffer, size_t& size);
@@ -73,11 +69,8 @@ public:
     void LoadState(const char* szPath, int index);
     bool LoadState(const u8* buffer, size_t size);
     bool LoadState(std::istream& stream);
-    void SetCheat(const char* szCheat);
-    void ClearCheats();
     void SetRamModificationCallback(RamChangedCallback callback);
     bool IsCGB();
-    bool IsGBA();
     Memory* GetMemory();
     Cartridge* GetCartridge();
     Processor* GetProcessor();
@@ -90,7 +83,7 @@ private:
     void InitDMGPalette();
     void InitMemoryRules();
     bool AddMemoryRules(Cartridge::CartridgeTypes forceType = Cartridge::CartridgeNotSupported);
-    void Reset(bool bCGB, bool bGBA);
+    void Reset(bool bCGB);
 
 private:
     Memory* m_pMemory;
@@ -108,7 +101,6 @@ private:
     MBC5MemoryRule* m_pMBC5MemoryRule;
     MultiMBC1MemoryRule* m_pMultiMBC1MemoryRule;
     bool m_bCGB;
-    bool m_bGBA;
     bool m_bPaused;
     u16 m_DMGPalette[4];
     bool m_bForceDMG;
